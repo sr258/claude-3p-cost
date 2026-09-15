@@ -31,6 +31,13 @@ Projekt F                 2    15       13.56    8.706.966    0:17:24
 Summe                                 1413.58
 ```
 
+That printed total is the POC's, verbatim, and it is four hundredths of a cent
+low: `summarize()` rounds each session to four decimals before summing
+(1413.5848), while the exact sum of `total_cost_usd` is 1413.5852, i.e.
+**1,413.59**. Verified during S3. The app accumulates in integer micro-USD and
+reports the exact figure, so it is expected to disagree with this transcript by
+one cent. The POC is the specification for parsing, not for rounding.
+
 **The POC is the specification for the parsing logic.** Every hard-won detail in
 it (see §4) must survive the port to TypeScript.
 
@@ -68,7 +75,7 @@ reference-material/
 ```
 
 Scale of the sample: 150 audit logs, ~37,000 JSONL lines, 508 `result` records,
-150 sessions across 7 Spaces, 1,413.58 USD.
+150 sessions across 7 Spaces, 1,413.59 USD (the POC prints 1,413.58 — see below).
 
 ---
 

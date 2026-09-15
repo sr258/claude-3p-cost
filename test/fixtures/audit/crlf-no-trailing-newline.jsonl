@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","cwd":"C:\\Users\\testuser\\AppData\\Local\\Claude-3p\\local-agent-mode-sessions\\d4e5f6a7\\outputs","model":"claude-opus-5"}
+{"type":"result","timestamp":"2026-01-05T06:00:00.000Z","total_cost_usd":0.075000,"duration_ms":750,"duration_api_ms":700,"num_turns":1,"is_error":false,"session_id":"88888888-9999-aaaa-bbbb-cccccccccccc"}

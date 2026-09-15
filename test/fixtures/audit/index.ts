@@ -1,0 +1,25 @@
+/**
+ * Absolute paths to the synthetic audit-log fixtures (S3 §6). Tests import
+ * these constants and never spell a fixture path themselves.
+ */
+import { join } from "node:path";
+
+const DIR = `${join(process.cwd(), "test", "fixtures", "audit")}/`;
+
+export const BASIC_JSONL = `${DIR}basic.jsonl`;
+export const ASSISTANT_NOISE_JSONL = `${DIR}assistant-noise.jsonl`;
+export const ABORTED_JSONL = `${DIR}aborted.jsonl`;
+export const MALFORMED_JSONL = `${DIR}malformed.jsonl`;
+export const CRLF_NO_TRAILING_NEWLINE_JSONL = `${DIR}crlf-no-trailing-newline.jsonl`;
+export const PARTIAL_FIELDS_JSONL = `${DIR}partial-fields.jsonl`;
+export const EMPTY_JSONL = `${DIR}empty.jsonl`;
+
+export const ALL_FIXTURES = [
+  BASIC_JSONL,
+  ASSISTANT_NOISE_JSONL,
+  ABORTED_JSONL,
+  MALFORMED_JSONL,
+  CRLF_NO_TRAILING_NEWLINE_JSONL,
+  PARTIAL_FIELDS_JSONL,
+  EMPTY_JSONL,
+];

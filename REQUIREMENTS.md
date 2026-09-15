@@ -69,9 +69,13 @@ Acceptance criteria:
   tokens; measured 1,661 instead of 152,004 in one session.)
 - Malformed JSONL lines are counted and skipped, never abort the scan.
 - JSON files are read as UTF-8, UTF-8-with-BOM, or UTF-16, in that order.
-- Regression test: the full `reference-material/` tree yields **1,413.58 USD**
-  across **150 sessions**, **508 requests** and **7 projects**, matching the
-  Python POC to the cent.
+- Regression test: the full `reference-material/` tree yields **1,413.59 USD**
+  across **150 sessions**, **508 requests** and **7 projects**.
+  The Python POC prints **1,413.58** for the same data, and the app is *not*
+  expected to reproduce that: `summarize()` rounds each session to four decimals
+  before summing (1413.5848), while the exact sum of `total_cost_usd` is
+  1413.5852. The app accumulates in integer micro-USD and reports the exact
+  figure. The POC is the specification for parsing, not for rounding.
 
 ### US-1.4 Project assignment `MUST`
 
