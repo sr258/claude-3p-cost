@@ -18,6 +18,26 @@ Phase 3  Review        Opus         fix what is critical, report the rest
 Phase 4  Hand off      you          verify green, update the roadmap, report, commit
 ```
 
+## Who runs what
+
+| Role | Model | Why |
+|------|-------|-----|
+| Orchestrator (you) | **Opus** | Judges plan quality, triages the implementer's objections, decides when to split a session, and verifies green first-hand |
+| Planner (Phase 1) | Opus | Design, requirements reasoning, and the decisions the requirements do not make |
+| Implementer (Phase 2) | Sonnet | Executes an approved plan against explicit acceptance criteria |
+| Reviewer (Phase 3) | Opus | Finds the plausible-looking-but-wrong, which is the expensive class of bug here |
+
+The orchestrator is the main session, so its model is whatever `/model` is set to
+— set it to Opus before starting a session. It cannot be changed partway through,
+because the orchestrator is one continuous conversation across all four phases.
+
+The temptation is to run the orchestrator cheap, since relaying looks mechanical.
+It is not: the orchestrator is the only party that sees the whole arc *and* talks
+to the user, and a weak one degrades into forwarding subagent claims unchecked —
+which is precisely what Phase 4's "run the commands yourself" exists to prevent.
+Token cost is modest anyway, since the bulky tool output stays inside the
+subagents; the orchestrator only holds the conversation and their reports.
+
 ## The one rule that shapes everything
 
 **Subagents cannot talk to the user. You can.** A subagent's report is not shown
