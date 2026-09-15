@@ -1,0 +1,107 @@
+/* ============================================================
+   Claude3PCost — Global Styles
+   CSS reset, custom properties, base layout, placeholder shell.
+   ============================================================ */
+
+/* ─── CSS Custom Properties ─────────────────────────────────────────────────
+   A trimmed token set covering what the scaffold and near-term roadmap
+   need. Colour values form a coherent palette; S17's budget warning states
+   will want the warning/error pair.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Primary (blue) */
+  --c3p-primary: #1676f3;
+  --c3p-primary-10: rgba(22, 118, 243, 0.1);
+  --c3p-primary-text: #1565c0;
+
+  /* Warning (orange/yellow) */
+  --c3p-warning: #f0a030;
+  --c3p-warning-text: #8c6900;
+
+  /* Error (red) */
+  --c3p-error: #e53935;
+  --c3p-error-10: rgba(229, 57, 53, 0.1);
+  --c3p-error-text: #c62828;
+
+  /* Success (green) */
+  --c3p-success-10: rgba(46, 174, 52, 0.1);
+  --c3p-success-text: #2e7d32;
+
+  /* Neutral / contrast */
+  --c3p-contrast-5: rgba(0, 0, 0, 0.05);
+  --c3p-contrast-10: rgba(0, 0, 0, 0.1);
+  --c3p-contrast-20: rgba(0, 0, 0, 0.2);
+
+  /* Text */
+  --c3p-text-primary: #1a1a2e;
+  --c3p-text-secondary: #6b7280;
+
+  /* Font sizes */
+  --c3p-font-xxs: 0.6875rem; /* 11px */
+  --c3p-font-xs: 0.75rem; /* 12px */
+  --c3p-font-s: 0.875rem; /* 14px */
+  --c3p-font-m: 1rem; /* 16px */
+  --c3p-font-l: 1.125rem; /* 18px */
+
+  /* Spacing */
+  --c3p-space-xxs: 0.125rem;
+  --c3p-space-xs: 0.25rem;
+  --c3p-space-s: 0.5rem;
+  --c3p-space-m: 1rem;
+  --c3p-space-l: 1.5rem;
+
+  /* Border radius */
+  --c3p-radius-s: 4px;
+  --c3p-radius-m: 8px;
+
+  /* Surface */
+  --c3p-surface: #ffffff;
+  --c3p-surface-raised: #ffffff;
+  --c3p-border: var(--c3p-contrast-20);
+}
+
+/* ─── CSS Reset ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: var(--c3p-font-m);
+  color: var(--c3p-text-primary);
+  background-color: var(--c3p-surface);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+/* ─── Placeholder shell ─────────────────────────────────────────────────── */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--c3p-space-s);
+  height: 100%;
+}
+
+.app-shell__title {
+  color: var(--c3p-text-primary);
+}
+
+.app-shell__version {
+  font-size: var(--c3p-font-s);
+  color: var(--c3p-text-secondary);
+}

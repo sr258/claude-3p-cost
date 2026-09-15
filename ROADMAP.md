@@ -47,7 +47,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | # | Session | Stories / NFRs | Depends on |
 |---|---------|----------------|------------|
 | **Phase 1 — Foundation** ||||
-| S1 | Project scaffold from CalView | NFR-8, NFR-10, NFR-12, NFR-5 | — |
+| S1 | ✅ Project scaffold from CalView | NFR-8, NFR-10, NFR-12, NFR-5 | — |
 | S2 | Localization layer | NFR-7 | S1 |
 | **Phase 2 — Reading the data (no UI)** ||||
 | S3 | Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
@@ -85,6 +85,8 @@ if two agents are available; everything else is sequential.
 ## Phase 1 — Foundation
 
 ### S1 — Project scaffold from CalView
+
+**Status. Done 2026-09-15.** Plan: `docs/plans/S1-project-scaffold.md`.
 
 **Goal.** A Tauri v2 + Preact + TypeScript project that builds and shows an empty
 window, named correctly everywhere.
