@@ -48,7 +48,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 |---|---------|----------------|------------|
 | **Phase 1 — Foundation** ||||
 | S1 | ✅ Project scaffold from CalView | NFR-8, NFR-10, NFR-12, NFR-5 | — |
-| S2 | Localization layer | NFR-7 | S1 |
+| S2 | ✅ Localization layer | NFR-7 | S1 |
 | **Phase 2 — Reading the data (no UI)** ||||
 | S3 | Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
 | S4 | Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
@@ -116,6 +116,8 @@ the keyring or COM code in drags in dependencies we do not want and breaks the
 Linux build.
 
 ### S2 — Localization layer
+
+**Status. Done 2026-09-15.** Plan: `docs/plans/S2-localization-layer.md`.
 
 **Goal.** `NFR-7` infrastructure, before any string exists to retrofit.
 

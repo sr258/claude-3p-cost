@@ -92,16 +92,91 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--c3p-space-s);
+  gap: var(--c3p-space-m);
   height: 100%;
+  padding: var(--c3p-space-l);
 }
 
-.app-shell__title {
+.app-shell__subtitle {
   color: var(--c3p-text-primary);
 }
 
-.app-shell__version {
+.app-shell__placeholder {
+  max-width: 32rem;
+  text-align: center;
   font-size: var(--c3p-font-s);
   color: var(--c3p-text-secondary);
+}
+
+/* ─── App bar ────────────────────────────────────────────────────────────── */
+
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--c3p-space-m);
+  width: 100%;
+  padding-bottom: var(--c3p-space-s);
+  border-bottom: 1px solid var(--c3p-border);
+}
+
+.app-bar__title {
+  font-size: var(--c3p-font-l);
+  color: var(--c3p-text-primary);
+}
+
+.app-bar__version {
+  font-size: var(--c3p-font-s);
+  color: var(--c3p-text-secondary);
+}
+
+.lang-switch {
+  display: flex;
+  gap: var(--c3p-space-xs);
+}
+
+.lang-switch button {
+  font-size: var(--c3p-font-s);
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  color: var(--c3p-text-primary);
+  cursor: pointer;
+}
+
+.lang-switch button[aria-pressed="true"] {
+  background: var(--c3p-primary-10);
+  border-color: var(--c3p-primary);
+  color: var(--c3p-primary-text);
+}
+
+/* ─── Stat card ──────────────────────────────────────────────────────────── */
+
+.stat-card {
+  width: 100%;
+  max-width: 32rem;
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-m);
+  background: var(--c3p-surface-raised);
+  padding: var(--c3p-space-m);
+}
+
+.stat-card__row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--c3p-space-xs) 0;
+}
+
+.stat-card__row + .stat-card__row {
+  border-top: 1px solid var(--c3p-contrast-5);
+}
+
+.stat-card__row dt {
+  color: var(--c3p-text-secondary);
+}
+
+.stat-card__row dd {
+  font-weight: 600;
+  color: var(--c3p-text-primary);
 }
