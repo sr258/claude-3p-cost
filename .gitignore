@@ -1,0 +1,29 @@
+# Local research inputs — never checked in
+poc/
+reference-material/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Reference app (separate repository)
+calview/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
