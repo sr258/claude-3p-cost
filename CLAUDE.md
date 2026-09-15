@@ -15,6 +15,13 @@ Read first, in this order:
 | `MAP.md` | What exists in the working directory, and the data model of the audit logs |
 | `VISION.md` | What the product is for and what it deliberately is not |
 | `REQUIREMENTS.md` | User stories with acceptance criteria, grouped by use case |
+| `ROADMAP.md` | Which stories are built in which session, and in what order |
+| `docs/plans/S<N>-*.md` | The approved plan for one session, written in its planning phase |
+
+Development runs one roadmap session at a time through the `/session` skill
+(`.claude/skills/session/`): an Opus agent plans it with the user, a Sonnet agent
+implements it, an Opus agent reviews it. Start work with `/session` rather than
+implementing straight from the roadmap.
 
 ## Naming
 
