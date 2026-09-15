@@ -50,7 +50,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S1 | ✅ Project scaffold from CalView | NFR-8, NFR-10, NFR-12, NFR-5 | — |
 | S2 | ✅ Localization layer | NFR-7 | S1 |
 | **Phase 2 — Reading the data (no UI)** ||||
-| S3 | Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
+| S3 | ✅ Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
 | S4 | Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
 | S5 | Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
 | **Phase 3 — Getting at the filesystem** ||||
@@ -146,6 +146,8 @@ are where the traps in `MAP.md` §4 get encoded, once, with tests.
 
 ### S3 — Audit log parser
 
+**Status. Done 2026-09-15.** Plan: `docs/plans/S3-audit-log-parser.md`.
+
 **Goal.** Turn one `audit.jsonl` into a typed session record.
 
 **Scope.** Types for the audit line variants; a streaming line-by-line parser;
@@ -192,13 +194,16 @@ grouping by connected folder as an alternative to project. Sorting. A single
 `Report` type that the whole UI reads from.
 
 **Exit.** `npm test`; plus a manual script, not in CI, that runs the pipeline
-over the local `reference-material/` tree and asserts **1,413.58 USD, 150
-sessions, 508 requests, 7 projects** — the US-1.3 regression, matching the POC
-to the cent.
+over the local `reference-material/` tree and asserts **1,413.59 USD, 150
+sessions, 508 requests, 7 projects** — the US-1.3 regression.
 
-**Trap.** Rounding. The POC accumulates model costs in integer micro-USD to
-avoid float drift; do the same, and compare against the POC's output rather than
-against intuition.
+**Trap.** Rounding, and it is not the trap it looks like. Accumulate in integer
+micro-USD throughout — S3 already does, `costMicroUsd` is the only cost its
+parser emits — and divide by 1e6 exactly once, at the display boundary. Do
+**not** reproduce the POC's per-session `round(cost, 4)`: that intermediate
+rounding is precisely why the POC prints 1,413.58 where the exact sum is
+1,413.59. Verified against the reference data during S3. Compare against the
+exact sum, not against the POC's printed total.
 
 ---
 

@@ -216,6 +216,21 @@ The full picture is in `MAP.md` §4. The things that will bite you:
   `claude-opus-5`; never normalise the suffix away.
 - **Encodings vary** — UTF-8, UTF-8-BOM and UTF-16 all occur.
 - **`spaces.json` schema is loose.** Keep the POC's tolerant reader.
+- **Cost is integer micro-USD from parse time onward.** `src/model/audit-parser.ts`
+  produces `costMicroUsd` via `Math.round(value * 1e6)`; no `costUsd` float field
+  exists anywhere past the parser. S5 sums integers and divides by `1e6` exactly
+  once, at the display boundary — never per-record.
+- **`Problem` (`src/model/problems.ts`) carries no path and no content.** `scope`
+  is a non-sensitive identifier (a session directory name, never a path); `hint`
+  is a bounded, content-free token (an error class name or a field name), never
+  file content or a prompt (NFR-6).
+- **`result.session_id` is not the session directory.** It is the CLI session
+  UUID, exposed as `AuditSession.cliSessionId` for S4's manifest matching. The
+  session id comes from `sessionIdFromCwd(cwd)`, falling back to the
+  caller-supplied `sourceId`.
+- **The model layer never imports `src/i18n/`.** `src/model/` stores problem
+  kinds, never translated or translatable messages; the UI maps `kind` to a
+  translation key.
 
 ## Testing
 
@@ -233,8 +248,10 @@ accessible roles and `data-testid`, never on translated text, so the specs work
 in both locales; one spec runs the overview path in each.
 
 The end-to-end regression check — full `reference-material/` tree yields
-1,413.58 USD, 150 sessions, 508 requests, 7 projects — is run manually against
-the local, uncommitted data. Keep a script for it; do not wire it into CI, since
+1,413.59 USD, 150 sessions, 508 requests, 7 projects — is run manually against
+the local, uncommitted data. (The POC prints 1,413.58: it rounds each session to
+four decimals before summing. The exact sum is 1413.5852 and the app
+accumulates in integer micro-USD, so 1,413.59 is the correct figure.) Keep a script for it; do not wire it into CI, since
 CI has no access to that data.
 
 ## Privacy Rules
