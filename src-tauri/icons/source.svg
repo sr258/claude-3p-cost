@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="180" fill="#1676f3" />
+  <text
+    x="512"
+    y="512"
+    font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    font-size="440"
+    font-weight="700"
+    fill="#ffffff"
+    text-anchor="middle"
+    dominant-baseline="central"
+  >3P</text>
+</svg>

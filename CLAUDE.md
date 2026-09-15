@@ -244,7 +244,7 @@ installer + portable exe) and Linux (deb + AppImage) and creates a **draft**
 release to be reviewed and published by hand.
 
 Windows builds must stay installable without administrator rights: NSIS
-`installMode: currentUser` (NFR-1). `calview/CROSS_COMPILE.md` documents the
+`installMode: currentUser` (NFR-1). `CROSS_COMPILE.md` documents the
 `cargo-xwin` route for building a Windows exe from Linux, should the GitHub
 Windows runner ever be unavailable.
 
