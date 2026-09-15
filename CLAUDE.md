@@ -107,6 +107,21 @@ locale on first start (`de-*` → German, otherwise English) and is switchable i
 settings without a restart. Numbers, currency and dates go through `Intl` with
 the active locale, never through hand-written formatting.
 
+**Implemented in S2** (`src/i18n/`). `de.ts` is the source of truth
+(`as const`); `en.ts` is `as const satisfies Record<TranslationKey, string>` —
+not a `: Record<…>` annotation, which would widen every value to `string` and
+destroy the typed placeholder inference `t()` relies on. Key parity between
+the two catalogues is enforced by `tsc` alone (a missing key is `TS1360`, an
+extra key is `TS2353`); there is no separate parity script. Locale tags are
+`de-DE` and `en-GB` (English is day-first, `en-GB`, not `en-US`). Currency is
+formatted as `formatNumber(...) + " " + code` rather than via
+`style: "currency"`, because `Intl`'s own currency style produces a symbol
+(`1.413,58 $`) or a wrong-order code, not NFR-7's `1.413,58 USD` /
+`1,413.58 USD`. The override is a bare locale string in `localStorage` under
+`claude3pcost.locale`, behind `src/services/locale-store.ts`. The DE/EN
+switcher (`src/components/language-switcher.tsx`) lives in a placeholder app
+bar for now; its final home is a settings screen (S15+ / S21).
+
 ## Development Commands
 
 ```bash
