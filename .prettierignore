@@ -3,3 +3,9 @@ src-tauri/target
 
 # Hand-formatted prose; not Prettier's job (tables in particular get mangled).
 *.md
+
+# Deliberately truncated JSON, invented for S4's malformed-input tests —
+# Prettier's JSON parser cannot format invalid JSON (see CLAUDE.md's lint
+# note: scope the exemption narrowly rather than disabling the check).
+test/fixtures/sessions/spaces-malformed.json
+test/fixtures/sessions/malformed-manifest.json

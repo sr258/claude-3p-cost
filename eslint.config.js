@@ -6,7 +6,15 @@ import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "src-tauri/**", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "src-tauri/**",
+      "node_modules/**",
+      // Gitignored local research inputs, never our code (see CLAUDE.md).
+      "poc/**",
+      "reference-material/**",
+      "calview/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

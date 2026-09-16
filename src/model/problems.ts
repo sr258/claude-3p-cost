@@ -1,6 +1,7 @@
 /**
  * Shared problem type for the model layer (S3 §2 Q3). Extended by S4
- * (`"malformed-manifest"`, `"unknown-space"`) and S6 (`"unreadable-file"`,
+ * (`"malformed-manifest"`, `"malformed-spaces"`, `"unknown-space"`,
+ * `"duplicate-session-key"`) and S6 (`"unreadable-file"`,
  * `"unreadable-directory"`). Rendered by S21.
  *
  * NFR-6: a `Problem` structurally cannot carry file content or a filesystem
@@ -12,7 +13,11 @@ export type ProblemKind =
   | "malformed-line" // JSON.parse threw on a non-empty line
   | "non-object-line" // valid JSON, but not an object
   | "missing-cost" // a result line without a usable total_cost_usd
-  | "decode-replacement"; // the byte stream contained undecodable sequences
+  | "decode-replacement" // the byte stream contained undecodable sequences
+  | "malformed-manifest" // JSON.parse threw on a local_<uuid>.json manifest
+  | "malformed-spaces" // JSON.parse threw on spaces.json
+  | "unknown-space" // a session's spaceId is not in the merged space index
+  | "duplicate-session-key"; // a session key resolved to more than one manifest
 
 export interface Problem {
   readonly kind: ProblemKind;

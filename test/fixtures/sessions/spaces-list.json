@@ -1,0 +1,10 @@
+{
+  "spaces": [
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000001", "name": "Alpha" },
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000002", "name": "Beta" },
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000003", "name": "Gamma" },
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000004", "name": "Delta" },
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000005", "name": "Epsilon" },
+    { "id": "aaaaaaaa-1111-4a11-8a11-000000000006", "name": "Zeta" }
+  ]
+}
