@@ -70,7 +70,11 @@ export function decodeText(bytes: Uint8Array): {
   // "decode-replacement" problem. The throw is caught here and never reaches
   // the caller (NFR-3); the fallback decode is non-fatal and cannot throw.
   try {
-    return { text: new TextDecoder(label, { fatal: true }).decode(bytes), encoding, hadReplacement: false };
+    return {
+      text: new TextDecoder(label, { fatal: true }).decode(bytes),
+      encoding,
+      hadReplacement: false,
+    };
   } catch {
     return { text: new TextDecoder(label).decode(bytes), encoding, hadReplacement: true };
   }

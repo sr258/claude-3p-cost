@@ -21,7 +21,10 @@ function getNumberFormatter(locale: Locale, options?: Intl.NumberFormatOptions):
   return formatter;
 }
 
-function getDateFormatter(locale: Locale, options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+function getDateFormatter(
+  locale: Locale,
+  options?: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
   const cacheKey = `${locale}|${JSON.stringify(options ?? {})}`;
   let formatter = dateFormatterCache.get(cacheKey);
   if (!formatter) {

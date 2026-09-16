@@ -164,7 +164,11 @@ describe("missing cost", () => {
     // `total_cost_usd: null` on line 4. The other four carry a real number and
     // must raise nothing, so the count is asserted, not just its floor.
     expect(missingCostProblems).toHaveLength(1);
-    expect(missingCostProblems[0]).toMatchObject({ kind: "missing-cost", line: 4, hint: "total_cost_usd" });
+    expect(missingCostProblems[0]).toMatchObject({
+      kind: "missing-cost",
+      line: 4,
+      hint: "total_cost_usd",
+    });
     expect(session.requests[3].costMicroUsd).toBe(0);
   });
 });

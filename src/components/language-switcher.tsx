@@ -16,18 +16,10 @@ export function LanguageSwitcher() {
       aria-label={t("language.label")}
       data-testid="language-switcher"
     >
-      <button
-        type="button"
-        aria-pressed={locale.value === "de"}
-        onClick={() => setLocale("de")}
-      >
+      <button type="button" aria-pressed={locale.value === "de"} onClick={() => setLocale("de")}>
         {t("language.de")}
       </button>
-      <button
-        type="button"
-        aria-pressed={locale.value === "en"}
-        onClick={() => setLocale("en")}
-      >
+      <button type="button" aria-pressed={locale.value === "en"} onClick={() => setLocale("en")}>
         {t("language.en")}
       </button>
     </div>

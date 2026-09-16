@@ -70,9 +70,7 @@ function collectNpmLicenses(root: string): {
       const repoUrl =
         typeof depPkg.repository === "string"
           ? depPkg.repository
-          : depPkg.repository?.url
-              ?.replace(/^git\+/, "")
-              .replace(/\.git$/, "");
+          : depPkg.repository?.url?.replace(/^git\+/, "").replace(/\.git$/, "");
       summaries.push({
         name,
         license: depPkg.license ?? "Unknown",
@@ -108,19 +106,15 @@ function collectCargoLicenses(root: string): {
   texts: Record<string, string>;
 } {
   const tauriDir = join(root, "src-tauri");
-  if (!existsSync(join(tauriDir, "Cargo.toml")))
-    return { summaries: [], texts: {} };
+  if (!existsSync(join(tauriDir, "Cargo.toml"))) return { summaries: [], texts: {} };
 
   try {
-    const rawFull = execSync(
-      "cargo metadata --format-version 1 2>/dev/null || true",
-      {
-        cwd: tauriDir,
-        encoding: "utf-8",
-        timeout: 120_000,
-        maxBuffer: 50 * 1024 * 1024,
-      },
-    );
+    const rawFull = execSync("cargo metadata --format-version 1 2>/dev/null || true", {
+      cwd: tauriDir,
+      encoding: "utf-8",
+      timeout: 120_000,
+      maxBuffer: 50 * 1024 * 1024,
+    });
 
     if (!rawFull.trim()) return { summaries: [], texts: {} };
 
@@ -173,9 +167,7 @@ export default function licensesPlugin(): Plugin {
       for (const e of [...npm.summaries, ...cargo.summaries]) {
         if (!merged.has(e.name)) merged.set(e.name, e);
       }
-      const summaries = Array.from(merged.values()).sort((a, b) =>
-        a.name.localeCompare(b.name),
-      );
+      const summaries = Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
 
       // Merge texts
       const allTexts: Record<string, string> = {

@@ -17,10 +17,11 @@ export type TArgs<K extends TranslationKey> = [Params<K>] extends [never]
   : [params: Record<Params<K>, string | number>];
 
 /** Bases of `x.one` / `x.other` pairs where BOTH halves exist. */
-export type PluralBase = Extract<TranslationKey, `${string}.one`> extends infer O
-  ? O extends `${infer B}.one`
-    ? `${B}.other` extends TranslationKey
-      ? B
+export type PluralBase =
+  Extract<TranslationKey, `${string}.one`> extends infer O
+    ? O extends `${infer B}.one`
+      ? `${B}.other` extends TranslationKey
+        ? B
+        : never
       : never
-    : never
-  : never;
+    : never;

@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
@@ -42,4 +43,7 @@ export default tseslint.config(
       },
     },
   },
+  // Must stay last so it can disable any stylistic rule that would otherwise
+  // conflict with Prettier's formatting.
+  eslintConfigPrettier,
 );
