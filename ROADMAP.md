@@ -51,7 +51,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S2 | ✅ Localization layer | NFR-7 | S1 |
 | **Phase 2 — Reading the data (no UI)** ||||
 | S3 | ✅ Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
-| S4 | Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
+| S4 | ✅ Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
 | S5 | Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
 | **Phase 3 — Getting at the filesystem** ||||
 | S6 | Filesystem interface + dev middleware | NFR-13, US-1.1 (dev) | S3 |
@@ -168,6 +168,8 @@ that `assistant` line `output_tokens` is never read.
 writing anything; it is the specification.
 
 ### S4 — Manifests, spaces, project assignment
+
+**Status. Done 2026-09-16.** Plan: `docs/plans/S4-manifests-spaces-project-assignment.md`.
 
 **Goal.** Map sessions to the projects the user actually sees in Claude Desktop.
 

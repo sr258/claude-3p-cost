@@ -243,6 +243,17 @@ The full picture is in `MAP.md` §4. The things that will bite you:
 - **The model layer never imports `src/i18n/`.** `src/model/` stores problem
   kinds, never translated or translatable messages; the UI maps `kind` to a
   translation key.
+- **`ProjectRef` is a three-kind union, not a nullable name.** `{ kind: "none" }`
+  (no `spaceId`), `{ kind: "named", spaceId, name }` (found in the merged
+  `spaces.json` index) and `{ kind: "unknown", spaceId }` (a `spaceId` no
+  `spaces.json` knows about — the session is kept, not dropped, and a
+  `"unknown-space"` problem is recorded with `hint: "spaceId"`, never the id's
+  value). `src/model/project-assignment.ts`, S4. `cwd` is read only to derive
+  `session_keys()` (S4's port of the POC function of the same name) and is then
+  dropped — it never reaches `SessionMeta`. Two real key collisions exist in
+  the reference data, both a manifest `cwd` pointing at a shared user folder
+  rather than a session directory; first-wins is kept and a
+  `"duplicate-session-key"` problem makes each one visible.
 
 ## Testing
 

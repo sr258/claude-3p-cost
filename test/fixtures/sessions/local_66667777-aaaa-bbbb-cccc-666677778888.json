@@ -1,0 +1,11 @@
+{
+  "sessionId": "local_66667777-aaaa-bbbb-cccc-666677778888",
+  "title": "Fixture Session Six",
+  "spaceId": "aaaaaaaa-1111-4a11-8a11-000000000003",
+  "userSelectedFolders": [
+    "C:\\Users\\fakeuser\\Projects\\gizmo-tool\\",
+    { "path": "D:\\Data\\reports\\" },
+    { "hostPath": "\\\\fakeserver\\archive\\old-notes" },
+    { "name": "fallback-name-only" }
+  ]
+}

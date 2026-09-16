@@ -1,0 +1,16 @@
+{
+  "sessionId": "local_11112222-aaaa-bbbb-cccc-111122223333",
+  "cliSessionId": "cli-11112222-aaaa-bbbb-cccc-111122223333",
+  "cwd": "C:\\Users\\fakeuser\\AppData\\Local\\Claude-3p\\local-agent-mode-sessions\\11112222\\outputs",
+  "title": "Fixture Session One",
+  "spaceId": "aaaaaaaa-1111-4a11-8a11-000000000001",
+  "model": "claude-sonnet-5",
+  "createdAt": 1700000000000,
+  "lastActivityAt": 1700000100000,
+  "isArchived": false,
+  "isStarred": false,
+  "resolvedFolderKinds": [
+    { "display": "C:\\Users\\fakeuser\\Projects\\widget-app", "kind": "local" },
+    { "display": "\\\\fakeserver\\share\\widget-data", "kind": "network-drive" }
+  ]
+}
