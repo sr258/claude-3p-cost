@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createLineDecoder, decodeText, detectEncoding, splitLines } from "./encoding.js";
 
-const SAMPLE_TEXT = 'line one with umlauts äöüß\nline two\n';
+const SAMPLE_TEXT = "line one with umlauts äöüß\nline two\n";
 
 function utf8Bytes(text: string): Uint8Array {
   return new TextEncoder().encode(text);

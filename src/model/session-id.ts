@@ -12,7 +12,10 @@ export function sessionIdFromCwd(cwd: string | null | undefined): string | null 
     return null;
   }
   const parts = cwd.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
-  if (parts.length >= 2 && (parts[parts.length - 1] === "outputs" || parts[parts.length - 1] === "uploads")) {
+  if (
+    parts.length >= 2 &&
+    (parts[parts.length - 1] === "outputs" || parts[parts.length - 1] === "uploads")
+  ) {
     return parts[parts.length - 2];
   }
   return parts.length > 0 ? parts[parts.length - 1] : null;

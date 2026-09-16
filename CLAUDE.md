@@ -129,9 +129,21 @@ npm run dev              # Vite dev server (http://localhost:5173)
 npm run build            # tsc + vite build → dist/
 npm test                 # vitest run
 npm run test:watch       # vitest watch
+npm run lint             # eslint .
+npm run format           # prettier --write .
+npm run format:check     # prettier --check .
 npx tauri dev            # Tauri dev window (starts Vite automatically)
 npx tauri build          # Production desktop build
 ```
+
+Run `npm run lint` and `npm run format:check` before considering a change
+done, alongside `npm test` — a session isn't finished if either fails. Fix
+`lint` failures rather than disabling the rule, unless the flagged code is
+deliberate (as with the NFR-7 non-breaking space in `src/i18n/format.ts`,
+where the rule is scoped narrower in `eslint.config.js` instead). Prettier
+formats `src/`, `plugins/`, `scripts/` and config files; it does not touch
+Markdown (`.prettierignore`) — those are hand-formatted prose, not
+Prettier's job.
 
 ```bash
 npm run test:e2e         # playwright test

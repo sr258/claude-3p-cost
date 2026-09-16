@@ -1,0 +1,5 @@
+dist
+src-tauri/target
+
+# Hand-formatted prose; not Prettier's job (tables in particular get mangled).
+*.md
