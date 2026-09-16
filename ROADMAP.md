@@ -54,7 +54,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S4 | ✅ Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
 | S5 | ✅ Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
 | **Phase 3 — Getting at the filesystem** ||||
-| S6 | Filesystem interface + dev middleware | NFR-13, US-1.1 (dev) | S3 |
+| S6 | ✅ Filesystem interface + dev middleware | NFR-13, US-1.1 (dev) | S3 |
 | S7 | Tauri filesystem implementation | US-1.1, US-1.2, US-1.6 | S6 |
 | **Phase 4 — The main view** ||||
 | S8 | Project overview + Playwright harness | US-2.1, NFR-9, NFR-2 | S5, S6, S2 |
@@ -214,6 +214,8 @@ exact sum, not against the POC's printed total.
 ## Phase 3 — Getting at the filesystem
 
 ### S6 — Filesystem interface + dev middleware
+
+**Status. Done 2026-09-16.** Plan: `docs/plans/S6-filesystem-interface-dev-middleware.md`.
 
 **Goal.** `npm run dev` runs against the real `reference-material/` tree in a
 browser.
@@ -479,6 +481,17 @@ granted in `src-tauri/capabilities/`.
 
 **Exit.** Keyboard-only Playwright spec for the main path; a robustness spec
 with deliberately broken fixtures.
+
+**Trap — per-audit problems currently never reach the UI.** `buildReport` takes
+only the scan-wide collector and `SessionRow` carries no problems field, so
+every `malformed-line`, `missing-cost` and similar problem that
+`parseAuditLines` produces is recorded and then dropped. Making the NFR-3
+summary reachable means plumbing `AuditSession.problems` through to
+`Report.problems` first — and before that, replacing `MAX_PROBLEMS_PER_SCOPE`'s
+flat global cap of 20 with a per-scope cap, or a handful of noisy sessions will
+crowd out every scan-level problem. Identified in S6 and deliberately left
+alone there, because the cap strategy is a decision for whoever renders the
+list.
 
 ### S22 — Release verification on Windows
 

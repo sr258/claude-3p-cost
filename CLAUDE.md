@@ -52,7 +52,10 @@ it as fixed from the first tagged build.
 
 ## The three input directories
 
-None of these are part of the product; all three are excluded from Git.
+None of these are part of the product; all three are excluded from Git. All
+three are **symlinks at the repository root** pointing outside the working
+directory — they are never real directories here, so anything that resolves or
+confines paths must resolve the symlink first and then stay inside the target.
 
 - **`poc/`** — a complete, working Python proof of concept. `cowork_costs.py` is
   the **specification for the parsing logic**. Before changing anything in
@@ -160,7 +163,7 @@ middleware exposes `reference-material/` read-only over HTTP, and the filesystem
 service picks the dev implementation instead of the Tauri fs plugin (NFR-13).
 So UI work happens in a normal browser with hot reload, against 150 real
 sessions — no packaged build needed. Point it elsewhere with the env var; it
-defaults to `../reference-material`.
+defaults to `./reference-material`, the symlink at the repository root.
 
 Use `npx tauri dev` when the thing you are changing is the Tauri side itself:
 real filesystem access, capabilities, file watching, the save dialog, packaging.
@@ -272,6 +275,23 @@ The full picture is in `MAP.md` §4. The things that will bite you:
   `ProjectRef`: one bucket per folder **set**, keyed on normalised full paths in
   manifest order, displayed as basenames. `ConnectedFolder.path` is sensitive
   and S19 must strip it from exports.
+- **One `FileSystem` interface, two implementations, one path boundary.**
+  `src/services/filesystem.ts`, S6. `createFileSystem()` is the only place that
+  chooses, and it chooses the dev implementation only under
+  `import.meta.env.DEV && !("__TAURI_INTERNALS__" in globalThis)` — `npx tauri
+  dev` runs the same Vite server inside the WebView, so the second half is what
+  keeps S7's empty-state check honest. `readLines()` returns a `LineStream`
+  carrying `encoding` and `hadReplacement`, because the byte→line boundary sits
+  in the service (using `src/model/encoding.ts`'s `createLineDecoder`) and the
+  parser never sees bytes. Addresses are normalised exactly once, in
+  `src/model/paths.ts`; `manifest.ts`'s private normaliser stays separate on
+  purpose — that one normalises *display* data out of manifest JSON, this one
+  normalises *addresses* we hand back to a filesystem. Filenames are opaque
+  bytes: no `String.prototype.normalize()` anywhere, because every non-ASCII
+  name in the reference tree is NFD on macOS. `plugins/vite-plugin-reference-fs.ts`
+  is `apply: "serve"`, confines to the **realpath'd** target of the
+  `reference-material` symlink, and never puts a path in a response body or a
+  log line (NFR-6).
 
 ## Testing
 

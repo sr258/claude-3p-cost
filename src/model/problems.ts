@@ -1,8 +1,8 @@
 /**
  * Shared problem type for the model layer (S3 §2 Q3). Extended by S4
  * (`"malformed-manifest"`, `"malformed-spaces"`, `"unknown-space"`,
- * `"duplicate-session-key"`) and S6 (`"unreadable-file"`,
- * `"unreadable-directory"`). Rendered by S21.
+ * `"duplicate-session-key"`) and S6, which has done so
+ * (`"unreadable-file"`, `"unreadable-directory"`). Rendered by S21.
  *
  * NFR-6: a `Problem` structurally cannot carry file content or a filesystem
  * path. `scope` is a non-sensitive identifier (a session directory name, not
@@ -17,7 +17,9 @@ export type ProblemKind =
   | "malformed-manifest" // JSON.parse threw on a local_<uuid>.json manifest
   | "malformed-spaces" // JSON.parse threw on spaces.json
   | "unknown-space" // a session's spaceId is not in the merged space index
-  | "duplicate-session-key"; // a session key resolved to more than one manifest
+  | "duplicate-session-key" // a session key resolved to more than one manifest
+  | "unreadable-directory" // listing a directory failed; the walk continued
+  | "unreadable-file"; // reading a file failed; the scan continued
 
 export interface Problem {
   readonly kind: ProblemKind;
