@@ -17,6 +17,12 @@ Read first, in this order:
 | `REQUIREMENTS.md` | User stories with acceptance criteria, grouped by use case |
 | `ROADMAP.md` | Which stories are built in which session, and in what order |
 | `docs/plans/S<N>-*.md` | The approved plan for one session, written in its planning phase |
+| `LEARNINGS.md` | Traps already walked into, in this project and this dev setup — read it before starting work, every time |
+
+`LEARNINGS.md` is persistent memory, not documentation: it holds what cost
+somebody time and is not obvious from the code. Only the session orchestrator
+writes it, at the end of a session and with the user's approval — any other agent
+that learns something reports it upward instead of editing the file.
 
 Development runs one roadmap session at a time through the `/session` skill
 (`.claude/skills/session/`): an Opus agent plans it with the user, a Sonnet agent
