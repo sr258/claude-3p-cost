@@ -58,10 +58,15 @@ function stripLocalPrefix(value: string): string {
  * the normalised form has no segment (mirrors `os.path.basename(...) or p`).
  */
 function basename(raw: string): string {
-  const normalized = raw.replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalized = normalizePath(raw);
   const parts = normalized.split("/");
   const last = parts[parts.length - 1];
   return last && last.length > 0 ? last : raw;
+}
+
+/** Backslashes -> "/", trailing separators stripped. S5 §4.1's `ConnectedFolder.path`. */
+function normalizePath(raw: string): string {
+  return raw.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
 /** Port of `folders_of()`. `resolvedFolderKinds` wins; `userSelectedFolders` is the fallback. */
@@ -71,8 +76,10 @@ function foldersOf(obj: Record<string, unknown>): ConnectedFolder[] {
   if (Array.isArray(resolved)) {
     for (const entry of resolved) {
       if (isPlainObject(entry) && entry.display) {
+        const raw = String(entry.display);
         out.push({
-          display: basename(String(entry.display)),
+          display: basename(raw),
+          path: normalizePath(raw) || null,
           kind: toStringOrNull(entry.kind),
         });
       }
@@ -84,12 +91,21 @@ function foldersOf(obj: Record<string, unknown>): ConnectedFolder[] {
       for (const entry of userSelected) {
         if (typeof entry === "string") {
           if (entry) {
-            out.push({ display: basename(entry), kind: null });
+            out.push({ display: basename(entry), path: normalizePath(entry) || null, kind: null });
           }
         } else if (isPlainObject(entry)) {
-          const value = firstTruthy(entry, ["display", "path", "hostPath", "name"]);
-          if (value) {
-            out.push({ display: basename(String(value)), kind: null });
+          const displayValue = firstTruthy(entry, ["display", "path", "hostPath", "name"]);
+          if (displayValue) {
+            // Only "path" and "hostPath" are actually path-like; "name" alone
+            // is a bare label with no directory structure, so `path` stays
+            // null and the S5 grouping key falls back to `display` — see
+            // plan §2 Q3 / §3.3 fixture 3.
+            const pathValue = firstTruthy(entry, ["path", "hostPath"]);
+            out.push({
+              display: basename(String(displayValue)),
+              path: pathValue ? normalizePath(String(pathValue)) || null : null,
+              kind: null,
+            });
           }
         }
       }

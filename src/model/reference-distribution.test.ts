@@ -12,6 +12,7 @@ import { parseAuditBytes } from "./audit-parser.js";
 import { buildManifestIndex, parseManifestBytes } from "./manifest.js";
 import { createProblemCollector } from "./problems.js";
 import { projectKey, resolveSessions, summarizeGaps } from "./project-assignment.js";
+import { buildReport } from "./report.js";
 import { mergeSpaceIndexes, parseSpacesBytes } from "./spaces.js";
 import type { ParsedManifest } from "./project-types.js";
 
@@ -90,5 +91,19 @@ describe.skipIf(!existsSync(dir))("reference distribution", () => {
     expect(gaps.sessionsWithoutManifest).toBe(0);
     expect(resolved.filter((r) => r.project.kind === "unknown")).toHaveLength(0);
     expect(problems.problems.filter((p) => p.kind === "duplicate-session-key")).toHaveLength(2);
+
+    // US-1.3's whole-tree regression (S5 plan §7). The exact sum is asserted
+    // to the cent, not the POC's printed 1413.58 — the POC rounds per session
+    // before summing, which is precisely the bug S5 does not port (plan §2 Q9).
+    const report = buildReport(resolved, problems.problems);
+
+    expect(report.sessions).toHaveLength(150);
+    expect(report.totals.requests).toBe(508);
+    expect(report.projectGroups).toHaveLength(7);
+    expect(Math.round(report.totals.costMicroUsd / 10_000) / 100).toBe(1413.59);
+
+    // A human reads these once; never asserted, never written to disk (NFR-6).
+    console.log("Reference total, exact integer micro-USD:", report.totals.costMicroUsd);
+    console.log("Reference folder group count:", report.folderGroups.length);
   });
 });

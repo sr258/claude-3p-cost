@@ -5,11 +5,32 @@
 import type { AuditSession } from "./audit-types.js";
 
 export interface ConnectedFolder {
-  /** Basename only. The full path is not retained here — see plan §2 Q8. */
+  /** Basename only — what the UI shows (US-2.4). */
   readonly display: string;
+  /**
+   * Normalised full path (backslashes → "/", trailing separators stripped), or
+   * null when the manifest gave no path-like value. SENSITIVE (NFR-6): the
+   * grouping key is derived from it, S10 may put it in hover text, and S19
+   * MUST strip it from every export. It never reaches a `Problem`.
+   */
+  readonly path: string | null;
   /** "local" | "network-drive" | anything else observed. */
   readonly kind: string | null;
 }
+
+/**
+ * US-2.4's folder bucketing. The sibling of `ProjectRef`: a discriminated kind,
+ * never a nullable name, because the UI translates "no connected folder" and
+ * the model layer never imports `src/i18n/`. One session belongs to exactly one
+ * bucket, keyed on its whole folder SET — see S5 plan §2 Q4.
+ */
+export type FolderRef =
+  | { readonly kind: "none" }
+  | {
+      readonly kind: "folders";
+      readonly key: string;
+      readonly folders: readonly ConnectedFolder[];
+    };
 
 export interface SessionMeta {
   /** `local_` stripped. NEVER truncated — the truncation is a key form, not an identity. */

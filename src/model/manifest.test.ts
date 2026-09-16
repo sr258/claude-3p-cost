@@ -138,8 +138,16 @@ describe("parseManifestText", () => {
       problems,
     );
     expect(parsed!.meta.folders).toEqual([
-      { display: "widget-app", kind: "local" },
-      { display: "widget-data", kind: "network-drive" },
+      {
+        display: "widget-app",
+        path: "C:/Users/fakeuser/Projects/widget-app",
+        kind: "local",
+      },
+      {
+        display: "widget-data",
+        path: "//fakeserver/share/widget-data",
+        kind: "network-drive",
+      },
     ]);
   });
 
@@ -161,7 +169,25 @@ describe("parseManifestText", () => {
       fileNameOf(MANIFEST_USER_SELECTED_FOLDERS_JSON),
       problems,
     );
-    expect(parsed!.meta.folders[0]).toEqual({ display: "gizmo-tool", kind: null });
+    expect(parsed!.meta.folders[0]).toEqual({
+      display: "gizmo-tool",
+      path: "C:/Users/fakeuser/Projects/gizmo-tool",
+      kind: null,
+    });
+  });
+
+  it("a userSelectedFolders entry with only a name field has a null path", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_USER_SELECTED_FOLDERS_JSON),
+      fileNameOf(MANIFEST_USER_SELECTED_FOLDERS_JSON),
+      problems,
+    );
+    expect(parsed!.meta.folders[3]).toEqual({
+      display: "fallback-name-only",
+      path: null,
+      kind: null,
+    });
   });
 
   it("carries kind through for resolvedFolderKinds entries", () => {
