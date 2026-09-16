@@ -159,7 +159,28 @@ describe("parseManifestText", () => {
       problems,
     );
     const displays = parsed!.meta.folders.map((f) => f.display);
-    expect(displays).toEqual(["gizmo-tool", "reports", "old-notes", "fallback-name-only"]);
+    expect(displays).toEqual([
+      "gizmo-tool",
+      "reports",
+      "old-notes",
+      "fallback-name-only",
+      "shared",
+      "shared",
+    ]);
+  });
+
+  it("a userSelectedFolders entry whose only path-like field is display keeps the full path", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_USER_SELECTED_FOLDERS_JSON),
+      fileNameOf(MANIFEST_USER_SELECTED_FOLDERS_JSON),
+      problems,
+    );
+    // Both entries basename to "shared". If `display` were not treated as
+    // path-like, both would get path null and the S5 folder grouping key would
+    // fall back to the shared basename, merging two unrelated folders.
+    expect(parsed!.meta.folders[4].path).toBe("E:/clients/alpha-corp/shared");
+    expect(parsed!.meta.folders[5].path).toBe("E:/clients/beta-corp/shared");
   });
 
   it("folder display is the basename for a backslash path with a trailing separator", () => {

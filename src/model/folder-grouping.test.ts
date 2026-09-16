@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { basename as pathBasename } from "node:path";
 import { describe, expect, it } from "vitest";
 import { folderKey, folderRefOf, NO_FOLDER_KEY } from "./folder-grouping.js";
+import { parseManifestText } from "./manifest.js";
+import { createProblemCollector } from "./problems.js";
 import type { ConnectedFolder } from "./project-types.js";
+import { MANIFEST_USER_SELECTED_FOLDERS_JSON } from "../../test/fixtures/sessions/index.js";
 
 function folder(overrides: Partial<ConnectedFolder> = {}): ConnectedFolder {
   return { display: "src", path: "/home/fixture/project-a/src", kind: "local", ...overrides };
@@ -52,6 +57,21 @@ describe("folderRefOf", () => {
       folder({ display: "a", path: "/p/a" }),
     ]);
     expect(folderKey(ab)).not.toBe(folderKey(ba));
+  });
+
+  it("two same-basename folders parsed from a real manifest get different keys", () => {
+    // End-to-end over manifest.ts's extraction, not over hand-built literals:
+    // the basename-collision guard is only worth anything if `foldersOf` really
+    // hands `path` through. Entries 4 and 5 both basename to "shared".
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readFileSync(MANIFEST_USER_SELECTED_FOLDERS_JSON, "utf-8"),
+      pathBasename(MANIFEST_USER_SELECTED_FOLDERS_JSON),
+      problems,
+    )!;
+    const [alpha, beta] = parsed.meta.folders.slice(4);
+    expect(alpha.display).toBe(beta.display);
+    expect(folderKey(folderRefOf([alpha]))).not.toBe(folderKey(folderRefOf([beta])));
   });
 
   it("network-drive kind survives into the FolderRef", () => {

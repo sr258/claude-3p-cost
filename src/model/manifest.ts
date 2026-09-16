@@ -96,11 +96,14 @@ function foldersOf(obj: Record<string, unknown>): ConnectedFolder[] {
         } else if (isPlainObject(entry)) {
           const displayValue = firstTruthy(entry, ["display", "path", "hostPath", "name"]);
           if (displayValue) {
-            // Only "path" and "hostPath" are actually path-like; "name" alone
-            // is a bare label with no directory structure, so `path` stays
-            // null and the S5 grouping key falls back to `display` — see
-            // plan §2 Q3 / §3.3 fixture 3.
-            const pathValue = firstTruthy(entry, ["path", "hostPath"]);
+            // "display", "path" and "hostPath" all carry a full path (the POC
+            // basenames whichever it picks, which only makes sense for a path).
+            // "name" alone is a bare label with no directory structure, so
+            // `path` stays null and the S5 grouping key falls back to
+            // `display` — see plan §2 Q3 / §3.3 fixture 3. Leaving "display"
+            // out here would give two unrelated `src/` folders the same
+            // fallback key, which is exactly the merge Q3 exists to prevent.
+            const pathValue = firstTruthy(entry, ["display", "path", "hostPath"]);
             out.push({
               display: basename(String(displayValue)),
               path: pathValue ? normalizePath(String(pathValue)) || null : null,

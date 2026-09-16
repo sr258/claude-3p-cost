@@ -300,14 +300,42 @@ describe("buildReport", () => {
     const sessions = [
       makeSession("b", [makeRequest({ costMicroUsd: 10 })]),
       makeSession("a", [makeRequest({ costMicroUsd: 10 })]),
+      makeSession("c", [makeRequest({ costMicroUsd: 99 })]),
     ];
     const report = buildReport(sessions, []);
     const asc = [...report.sessions].sort(compareSessionRows("cost", "asc"));
     const desc = [...report.sessions].sort(compareSessionRows("cost", "desc"));
-    expect(asc.map((s) => s.sessionId)).toEqual(["a", "b"]);
-    expect(desc.map((s) => s.sessionId)).toEqual(["a", "b"]);
+    // The tie-break is ascending in both directions; the primary field is not.
+    expect(asc.map((s) => s.sessionId)).toEqual(["a", "b", "c"]);
+    expect(desc.map((s) => s.sessionId)).toEqual(["c", "a", "b"]);
 
     const groupAsc = [...report.projectGroups].sort(compareGroupRows("cost", "asc"));
     expect(groupAsc.length).toBe(report.projectGroups.length);
+  });
+
+  it("a null lastActivity sorts last in both directions", () => {
+    const sessions = [
+      makeSession("dated-old", [makeRequest()], {
+        project: { kind: "named", spaceId: "old", name: "Old" },
+        meta: { lastActivityAt: 1_000 },
+      }),
+      makeSession("undated", [makeRequest()], {
+        project: { kind: "named", spaceId: "undated", name: "Undated" },
+        meta: { lastActivityAt: null },
+      }),
+      makeSession("dated-new", [makeRequest()], {
+        project: { kind: "named", spaceId: "new", name: "New" },
+        meta: { lastActivityAt: 2_000 },
+      }),
+    ];
+    const report = buildReport(sessions, []);
+
+    const asc = [...report.sessions].sort(compareSessionRows("lastActivity", "asc"));
+    const desc = [...report.sessions].sort(compareSessionRows("lastActivity", "desc"));
+    expect(asc.map((s) => s.sessionId)).toEqual(["dated-old", "dated-new", "undated"]);
+    expect(desc.map((s) => s.sessionId)).toEqual(["dated-new", "dated-old", "undated"]);
+
+    const groupsDesc = [...report.projectGroups].sort(compareGroupRows("lastActivity", "desc"));
+    expect(groupsDesc.map((g) => g.key)).toEqual(["new", "old", "undated"]);
   });
 });

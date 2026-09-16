@@ -52,7 +52,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | **Phase 2 — Reading the data (no UI)** ||||
 | S3 | ✅ Audit log parser | US-1.3, NFR-3, NFR-4 | S1 |
 | S4 | ✅ Manifests, spaces, project assignment | US-1.4, US-1.5 | S3 |
-| S5 | Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
+| S5 | ✅ Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
 | **Phase 3 — Getting at the filesystem** ||||
 | S6 | Filesystem interface + dev middleware | NFR-13, US-1.1 (dev) | S3 |
 | S7 | Tauri filesystem implementation | US-1.1, US-1.2, US-1.6 | S6 |
@@ -187,6 +187,8 @@ requests.
 **Trap.** `session_keys()` in the POC. The truncation rule is not guessable.
 
 ### S5 — Aggregation
+
+**Status. Done 2026-09-16.** Plan: `docs/plans/S5-aggregation.md`.
 
 **Goal.** Roll per-request records up into everything the UI will display.
 

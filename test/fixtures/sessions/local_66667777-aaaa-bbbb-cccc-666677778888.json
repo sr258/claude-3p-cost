@@ -6,6 +6,8 @@
     "C:\\Users\\fakeuser\\Projects\\gizmo-tool\\",
     { "path": "D:\\Data\\reports\\" },
     { "hostPath": "\\\\fakeserver\\archive\\old-notes" },
-    { "name": "fallback-name-only" }
+    { "name": "fallback-name-only" },
+    { "display": "E:\\clients\\alpha-corp\\shared" },
+    { "display": "E:\\clients\\beta-corp\\shared" }
   ]
 }

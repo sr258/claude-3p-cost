@@ -148,7 +148,14 @@ interface MutableModelTotal {
 function sortModelTotals(models: readonly MutableModelTotal[]): readonly ModelTotal[] {
   return Object.freeze(
     [...models]
-      .sort((a, b) => b.costMicroUsd - a.costMicroUsd || a.model.localeCompare(b.model))
+      // Code-unit comparison, not `localeCompare`: the model layer may not
+      // reach for host-locale collation (that is why S9 injects a collator for
+      // title sorting), and a locale-dependent order would not be stable
+      // across machines.
+      .sort(
+        (a, b) =>
+          b.costMicroUsd - a.costMicroUsd || (a.model < b.model ? -1 : a.model > b.model ? 1 : 0),
+      )
       .map((m) => Object.freeze({ ...m })),
   );
 }

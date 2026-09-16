@@ -157,6 +157,10 @@ Its brief: the path to the approved plan file, the paths to `CLAUDE.md`,
   fit, an acceptance criterion that cannot be met as designed — **stop and report
   it.** Do not improvise a different design.
 - Run the plan's exit commands. Report their actual output, pass or fail.
+- **Do not commit, and do not create or switch branches.** Leave the work in the
+  working tree and report what you changed. Committing is Phase 4's job, after
+  the review — a commit made before Phase 3 buries the fixes the reviewer makes
+  in a second commit, or invites squashing them out of the history entirely.
 - If you learn something that would have saved you time had you known it at the
   start — a tool that misbehaves here, a trap the plan did not anticipate —
   report it under a **Learnings** heading. Do not edit `LEARNINGS.md` yourself.

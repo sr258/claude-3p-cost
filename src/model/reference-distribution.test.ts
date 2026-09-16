@@ -101,9 +101,9 @@ describe.skipIf(!existsSync(dir))("reference distribution", () => {
     expect(report.totals.requests).toBe(508);
     expect(report.projectGroups).toHaveLength(7);
     expect(Math.round(report.totals.costMicroUsd / 10_000) / 100).toBe(1413.59);
-
-    // A human reads these once; never asserted, never written to disk (NFR-6).
-    console.log("Reference total, exact integer micro-USD:", report.totals.costMicroUsd);
-    console.log("Reference folder group count:", report.folderGroups.length);
+    // Measured in S5, not independently confirmed against what Claude Desktop
+    // displays — unlike the seven projects above. Pinned so it cannot drift.
+    expect(report.folderGroups).toHaveLength(26);
+    expect(report.totals.costMicroUsd).toBe(1_413_585_188);
   });
 });

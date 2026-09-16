@@ -7,7 +7,14 @@ import type { Problem } from "./problems.js";
 import { folderKey, folderRefOf } from "./folder-grouping.js";
 import { projectKey, summarizeGaps } from "./project-assignment.js";
 import type { ResolvedSession } from "./project-types.js";
-import type { GroupLabel, GroupRow, Report, SessionRow, TimeBucket } from "./report-types.js";
+import type {
+  CostTotals,
+  GroupLabel,
+  GroupRow,
+  Report,
+  SessionRow,
+  TimeBucket,
+} from "./report-types.js";
 import {
   dayKey,
   monthKey,
@@ -258,10 +265,7 @@ export function costShare(partMicroUsd: number, totalMicroUsd: number): number {
 export type SortDirection = "asc" | "desc";
 export type RowSortField = "cost" | "requests" | "duration" | "lastActivity";
 
-function fieldValue(
-  field: RowSortField,
-  totals: { costMicroUsd: number; requests: number; durationMs: number },
-): number {
+function fieldValue(field: RowSortField, totals: CostTotals): number {
   switch (field) {
     case "cost":
       return totals.costMicroUsd;
@@ -270,15 +274,39 @@ function fieldValue(
     case "duration":
       return totals.durationMs;
     case "lastActivity":
-      return 0; // handled separately by callers that pass lastActivity
+      return 0; // unreachable: comparePrimary handles it before calling here
   }
 }
 
-function compareNullableNumberAsc(a: number | null, b: number | null): number {
+/**
+ * A null `lastActivity` sorts LAST in both directions (plan §4.6). The null
+ * verdict is therefore NOT multiplied by the direction sign — doing so would
+ * float every undated row to the top of a descending sort. Returns `null` when
+ * both sides are present and the ordinary signed comparison applies.
+ */
+function compareNullsLast(a: number | null, b: number | null): number | null {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
   if (b === null) return -1;
-  return a - b;
+  return null;
+}
+
+function comparePrimary(
+  field: RowSortField,
+  sign: number,
+  aValue: number | null,
+  bValue: number | null,
+  aTotals: CostTotals,
+  bTotals: CostTotals,
+): number {
+  if (field === "lastActivity") {
+    const nulls = compareNullsLast(aValue, bValue);
+    if (nulls !== null) {
+      return nulls;
+    }
+    return sign * ((aValue ?? 0) - (bValue ?? 0));
+  }
+  return sign * (fieldValue(field, aTotals) - fieldValue(field, bTotals));
 }
 
 export function compareSessionRows(
@@ -287,14 +315,16 @@ export function compareSessionRows(
 ): (a: SessionRow, b: SessionRow) => number {
   const sign = direction === "asc" ? 1 : -1;
   return (a, b) => {
-    let primary: number;
-    if (field === "lastActivity") {
-      primary = compareNullableNumberAsc(a.lastActivityAt, b.lastActivityAt);
-    } else {
-      primary = fieldValue(field, a.totals) - fieldValue(field, b.totals);
-    }
+    const primary = comparePrimary(
+      field,
+      sign,
+      a.lastActivityAt,
+      b.lastActivityAt,
+      a.totals,
+      b.totals,
+    );
     if (primary !== 0) {
-      return sign * primary;
+      return primary;
     }
     return a.sessionId < b.sessionId ? -1 : a.sessionId > b.sessionId ? 1 : 0;
   };
@@ -316,14 +346,16 @@ export function compareGroupRows(
 ): (a: GroupRow, b: GroupRow) => number {
   const sign = direction === "asc" ? 1 : -1;
   return (a, b) => {
-    let primary: number;
-    if (field === "lastActivity") {
-      primary = compareNullableNumberAsc(groupLastActivity(a), groupLastActivity(b));
-    } else {
-      primary = fieldValue(field, a.totals) - fieldValue(field, b.totals);
-    }
+    const primary = comparePrimary(
+      field,
+      sign,
+      groupLastActivity(a),
+      groupLastActivity(b),
+      a.totals,
+      b.totals,
+    );
     if (primary !== 0) {
-      return sign * primary;
+      return primary;
     }
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   };

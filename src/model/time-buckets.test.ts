@@ -42,14 +42,23 @@ describe("dayKey and monthKey", () => {
   });
 
   it("the resolver is consulted per instant, so a DST change splits two days correctly", () => {
-    // Before the DST jump: UTC+60. After: UTC+120. Each instant gets its own offset.
-    const beforeJump = Date.parse("2026-03-29T00:30:00.000Z");
-    const afterJump = Date.parse("2026-03-30T00:30:00.000Z");
-    const dstResolver: ZoneOffsetResolver = (ms) =>
-      ms < Date.parse("2026-03-29T12:00:00.000Z") ? 60 : 120;
+    // Both instants are 23:30 UTC, which puts them either side of local
+    // midnight depending on the offset in force AT THAT INSTANT. Before the
+    // jump the zone is UTC+0 (23:30 local, same day); after it is UTC+60
+    // (00:30 local, next day). A single offset captured once would put BOTH
+    // on the same side and get one of the two days wrong, so this case can
+    // only pass if the resolver is consulted per instant.
+    const beforeJump = Date.parse("2026-03-28T23:30:00.000Z");
+    const afterJump = Date.parse("2026-03-29T23:30:00.000Z");
+    const jump = Date.parse("2026-03-29T01:00:00.000Z");
+    const dstResolver: ZoneOffsetResolver = (ms) => (ms < jump ? 0 : 60);
 
-    expect(dayKey(beforeJump, dstResolver)).toBe("2026-03-29");
+    expect(dayKey(beforeJump, dstResolver)).toBe("2026-03-28");
     expect(dayKey(afterJump, dstResolver)).toBe("2026-03-30");
+
+    // The two wrong answers a captured-once offset would give.
+    expect(dayKey(afterJump, () => 0)).toBe("2026-03-29");
+    expect(dayKey(beforeJump, () => 60)).toBe("2026-03-29");
   });
 
   it("month and year rollovers produce the right key", () => {
