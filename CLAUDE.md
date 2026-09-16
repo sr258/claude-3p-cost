@@ -260,6 +260,18 @@ The full picture is in `MAP.md` §4. The things that will bite you:
   the reference data, both a manifest `cwd` pointing at a shared user folder
   rather than a session directory; first-wins is kept and a
   `"duplicate-session-key"` problem makes each one visible.
+- **`Report` is one frozen object, built eagerly, carrying both groupings.**
+  `src/model/report.ts`, S5. `projectGroups` and `folderGroups` are both always
+  populated, so S10's toggle rebuilds nothing. Every `GroupRow` and `SessionRow`
+  carries its own `ModelBreakdown`, which is what makes US-2.3's scoped
+  breakdown free. `ModelBreakdown.costMicroUsd` is the sum over `modelUsage`
+  and is **not** the authoritative total — that is `CostTotals.costMicroUsd`,
+  from `total_cost_usd`; shares are computed against the former so they sum to
+  100%. Day and month buckets use a `ZoneOffsetResolver` injected by the caller
+  (defaulting to UTC), because the model layer has no clock. `FolderRef` mirrors
+  `ProjectRef`: one bucket per folder **set**, keyed on normalised full paths in
+  manifest order, displayed as basenames. `ConnectedFolder.path` is sensitive
+  and S19 must strip it from exports.
 
 ## Testing
 
