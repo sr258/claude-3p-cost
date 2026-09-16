@@ -280,10 +280,12 @@ narrative ("S6 was hard") with no reusable lesson. Propose nothing if nothing
 survives: a padded learnings list is worse than an empty one.
 
 Put the survivors to the user as draft entries, written out in full, and write
-the approved ones yourself. One heading per learning, newest first, phrased as
-the lesson rather than the incident, followed by the evidence and what to do
-about it; note the session it came from. Correct or delete an entry that turns
-out to be wrong — a stale learning is worse than none.
+the approved ones yourself. The file is **a flat bullet list, not a document**:
+one bullet per learning, newest first, no headings. Lead each bullet with the
+lesson in bold, phrased as the lesson rather than the incident, then the session
+it came from, then — briefly — the evidence and what to do about it. No
+narrative, no history. Correct or delete an entry that turns out to be wrong —
+a stale learning is worse than none.
 
 **Nothing sensitive goes in it.** The privacy rules in `CLAUDE.md` apply in full:
 no prompt text, no response text, no project instructions, no absolute paths out
