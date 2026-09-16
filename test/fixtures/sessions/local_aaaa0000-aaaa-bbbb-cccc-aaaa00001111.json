@@ -1,0 +1,9 @@
+{
+  "sessionId": "local_aaaa0000-aaaa-bbbb-cccc-aaaa00001111",
+  "title": "Fixture Sensitive",
+  "spaceId": "aaaaaaaa-1111-4a11-8a11-000000000001",
+  "systemPrompt": "Invented system prompt content for testing.",
+  "initialMessage": "Invented initial message content for testing.",
+  "emailAddress": "fixture.user@example.invalid",
+  "instructions": "Invented project instructions for testing."
+}

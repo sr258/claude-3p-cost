@@ -1,0 +1,9 @@
+{
+  "spaces": [
+    { "uuid": "eeeeeeee-5555-4e55-8e55-000000000001", "title": "Alpha" },
+    { "space_id": "eeeeeeee-5555-4e55-8e55-000000000002", "label": "Beta" },
+    { "key": "eeeeeeee-5555-4e55-8e55-000000000003", "displayName": "Gamma" },
+    { "spaceId": "eeeeeeee-5555-4e55-8e55-000000000005", "name": "Delta" },
+    { "uuid": "eeeeeeee-5555-4e55-8e55-000000000004" }
+  ]
+}
