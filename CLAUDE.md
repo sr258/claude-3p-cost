@@ -52,10 +52,11 @@ it as fixed from the first tagged build.
 
 ## The three input directories
 
-None of these are part of the product; all three are excluded from Git. All
-three are **symlinks at the repository root** pointing outside the working
-directory — they are never real directories here, so anything that resolves or
-confines paths must resolve the symlink first and then stay inside the target.
+None of these are part of the product; all three are excluded from Git and must
+never be committed. Each may be either a real directory or a symlink to one
+outside the working directory — either is fine, but whichever it is, anything
+that resolves or confines paths must resolve a symlink first and then stay
+inside the target.
 
 - **`poc/`** — a complete, working Python proof of concept. `cowork_costs.py` is
   the **specification for the parsing logic**. Before changing anything in
