@@ -19,6 +19,7 @@ import { groupLabelText } from "./group-label.js";
 import { SessionTable } from "./session-table.js";
 import { compareSessionRows, type SessionSortField, type SortDirection } from "../model/report.js";
 import type { CostTotals, GroupRow } from "../model/report-types.js";
+import type { Grouping } from "../state/app-state.js";
 
 export interface OverviewTableProps {
   /** Rendered in the order given. The component never sorts (plan §2 Q6). */
@@ -30,16 +31,34 @@ export interface OverviewTableProps {
   readonly sortDirection: SortDirection;
   readonly onToggle: (groupKey: string) => void;
   readonly onSort: (field: SessionSortField) => void;
+  /** Drives the first column header (S10 plan §2 Q10). */
+  readonly grouping: Grouping;
+  readonly selectedKey: string | null;
+  /** The same key again -> the caller resets to "all" (S10 plan §2 Q12). */
+  readonly onSelect: (groupKey: string) => void;
 }
 
 export function OverviewTable(props: OverviewTableProps) {
-  const { groups, totals, expandedKeys, sortField, sortDirection, onToggle, onSort } = props;
+  const {
+    groups,
+    totals,
+    expandedKeys,
+    sortField,
+    sortDirection,
+    onToggle,
+    onSort,
+    grouping,
+    selectedKey,
+    onSelect,
+  } = props;
 
   return (
     <table class="overview-table" data-testid="overview-table">
       <thead>
         <tr>
-          <th scope="col">{t("overview.columnProject")}</th>
+          <th scope="col">
+            {grouping === "folder" ? t("overview.columnFolder") : t("overview.columnProject")}
+          </th>
           <th scope="col">{t("overview.columnSessions")}</th>
           <th scope="col">{t("overview.columnRequests")}</th>
           <th scope="col">{t("overview.columnCost")}</th>
@@ -50,15 +69,20 @@ export function OverviewTable(props: OverviewTableProps) {
         {groups.map((group) => {
           const label = groupLabelText(group.label);
           const isExpanded = expandedKeys.has(group.key);
+          const isSelected = selectedKey === group.key;
           const panelId = `session-panel-${group.key}`;
           const toggleLabel = isExpanded
             ? t("overview.collapseGroup", { name: label.text })
             : t("overview.expandGroup", { name: label.text });
+          const scopeLabel = isSelected
+            ? t("models.clearScope")
+            : t("models.selectScope", { name: label.text });
           return (
             <Fragment key={group.key}>
               <tr
                 data-testid="group-row"
                 data-group-key={group.key}
+                data-selected={isSelected}
                 onClick={(event) => {
                   if ((event.target as HTMLElement).closest("button") !== null) {
                     return;
@@ -66,7 +90,7 @@ export function OverviewTable(props: OverviewTableProps) {
                   onToggle(group.key);
                 }}
               >
-                <th scope="row" data-testid="cell-project" title={label.title}>
+                <th scope="row" data-testid="cell-project">
                   <button
                     type="button"
                     data-testid="group-disclosure"
@@ -75,7 +99,30 @@ export function OverviewTable(props: OverviewTableProps) {
                     aria-label={toggleLabel}
                     onClick={() => onToggle(group.key)}
                   >
-                    {isExpanded ? "▼" : "▶"} {label.text}
+                    {isExpanded ? "▼" : "▶"}{" "}
+                  </button>
+                  {label.parts.map((part, index) => (
+                    <span key={index}>
+                      {index > 0 && ", "}
+                      <span data-testid="folder-part" title={part.title}>
+                        {part.text}
+                      </span>
+                      {part.isNetworkDrive && (
+                        <span class="network-drive-badge" data-testid="network-drive-badge">
+                          {t("overview.networkDrive")}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    class="scope-select"
+                    data-testid="scope-select"
+                    aria-pressed={isSelected}
+                    aria-label={scopeLabel}
+                    onClick={() => onSelect(group.key)}
+                  >
+                    {isSelected ? "✓" : "○"}
                   </button>
                 </th>
                 <td data-testid="cell-sessions">{tNumber(group.sessionCount)}</td>
@@ -86,16 +133,20 @@ export function OverviewTable(props: OverviewTableProps) {
               {isExpanded && (
                 <tr data-testid="session-panel-row" id={panelId}>
                   <td colSpan={5}>
-                    <SessionTable
-                      groupKey={group.key}
-                      groupLabel={label.text}
-                      sessions={[...group.sessions].sort(
-                        compareSessionRows(sortField, sortDirection, { compareText: tCompareText }),
-                      )}
-                      sortField={sortField}
-                      sortDirection={sortDirection}
-                      onSort={onSort}
-                    />
+                    <div class="session-table__scroll" data-testid="session-table-scroll">
+                      <SessionTable
+                        groupKey={group.key}
+                        groupLabel={label.text}
+                        sessions={[...group.sessions].sort(
+                          compareSessionRows(sortField, sortDirection, {
+                            compareText: tCompareText,
+                          }),
+                        )}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={onSort}
+                      />
+                    </div>
                   </td>
                 </tr>
               )}

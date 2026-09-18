@@ -6,33 +6,52 @@
  * renders basenames joined for display and carries the joined full paths as
  * `title`.
  */
+import { isNetworkDrive } from "../model/folder-grouping.js";
 import { pathBasename } from "../model/paths.js";
 import { t } from "../i18n/index.js";
 import type { GroupLabel } from "../model/report-types.js";
 
-export interface GroupLabelText {
+export interface GroupLabelPart {
+  /** Basename, or the translated project label. Never a path. */
   readonly text: string;
-  /** Hover only (NFR-6). The full folder path; S19 MUST strip it from exports. */
+  /** Full path -- HOVER ONLY (NFR-6). S19 MUST strip it from exports. */
   readonly title?: string;
+  readonly isNetworkDrive: boolean;
+}
+
+export interface GroupLabelText {
+  /** The parts' text joined with ", ". */
+  readonly text: string;
+  /** The parts' titles joined with ", ". */
+  readonly title?: string;
+  readonly parts: readonly GroupLabelPart[];
 }
 
 export function groupLabelText(label: GroupLabel): GroupLabelText {
   if (label.kind === "project") {
     const project = label.project;
+    let text: string;
     if (project.kind === "none") {
-      return { text: t("overview.noProject") };
+      text = t("overview.noProject");
+    } else if (project.kind === "named") {
+      text = project.name;
+    } else {
+      text = t("overview.unknownProject", { spaceId: project.spaceId });
     }
-    if (project.kind === "named") {
-      return { text: project.name };
-    }
-    return { text: t("overview.unknownProject", { spaceId: project.spaceId }) };
+    return { text, parts: [{ text, isNetworkDrive: false }] };
   }
 
   const folder = label.folder;
   if (folder.kind === "none") {
-    return { text: t("overview.noFolder") };
+    const text = t("overview.noFolder");
+    return { text, parts: [{ text, isNetworkDrive: false }] };
   }
-  const names = folder.folders.map((f) => pathBasename(f.path ?? f.display));
-  const paths = folder.folders.map((f) => f.path ?? f.display);
-  return { text: names.join(", "), title: paths.join(", ") };
+  const parts: GroupLabelPart[] = folder.folders.map((f) => ({
+    text: pathBasename(f.path ?? f.display),
+    title: f.path ?? f.display,
+    isNetworkDrive: isNetworkDrive(f),
+  }));
+  const text = parts.map((p) => p.text).join(", ");
+  const title = parts.map((p) => p.title).join(", ");
+  return { text, title, parts };
 }

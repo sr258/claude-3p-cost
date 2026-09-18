@@ -15,22 +15,40 @@
  *
  * `StatusBar` is the permanent home for "what do these numbers cover"; it
  * replaces the empty state's former provisional summary strip.
+ *
+ * S10 (US-1.5, US-2.3, US-2.4, plan §1): a gap strip sits above the toolbar;
+ * a grouping toggle picks `projectGroups` vs `folderGroups`; a scope-
+ * following `ModelPanel` sits beside the table in a two-column grid, closable
+ * via `modelPanelOpen`. Expansion, sort, scope and panel visibility are all
+ * signals `runScan()` never touches, so all four survive a rescan.
  */
 import { useEffect } from "preact/hooks";
 import { t } from "./i18n/index.js";
 import { LanguageSwitcher } from "./components/language-switcher.js";
 import { EmptyState } from "./components/empty-state.js";
+import { GapIndicators } from "./components/gap-indicators.js";
+import { groupLabelText } from "./components/group-label.js";
+import { GroupingToggle } from "./components/grouping-toggle.js";
+import { ModelPanel, type ModelScope } from "./components/model-panel.js";
 import { OverviewTable } from "./components/overview-table.js";
 import { StatusBar } from "./components/status-bar.js";
+import { findGroup } from "./model/report.js";
 import {
-  expandedGroups,
+  clearGroupScope,
+  expandedKeysFor,
+  grouping,
+  modelPanelOpen,
   report,
   runScan,
   scanState,
+  selectedGroupKey,
   sessionSortDirection,
   sessionSortField,
+  setGrouping,
+  setModelPanelOpen,
   setSessionSort,
   toggleGroup,
+  toggleGroupScope,
 } from "./state/app-state.js";
 
 export function App() {
@@ -39,7 +57,21 @@ export function App() {
   }, []);
 
   const currentReport = report.value;
-  const hasGroups = (currentReport?.projectGroups.length ?? 0) > 0;
+  const currentGrouping = grouping.value;
+  const groups =
+    currentGrouping === "folder"
+      ? (currentReport?.folderGroups ?? [])
+      : (currentReport?.projectGroups ?? []);
+  const hasGroups = groups.length > 0;
+
+  const selectedKey = selectedGroupKey(currentGrouping);
+  const selectedGroup = currentReport ? findGroup(groups, selectedKey) : null;
+
+  const panelBreakdown = selectedGroup ? selectedGroup.models : (currentReport?.models ?? null);
+  const panelTotals = selectedGroup ? selectedGroup.totals : (currentReport?.totals ?? null);
+  const scope: ModelScope = selectedGroup
+    ? { kind: "group", label: groupLabelText(selectedGroup.label).text }
+    : { kind: "all" };
 
   return (
     <main class="app-shell" data-testid="app-shell">
@@ -51,18 +83,51 @@ export function App() {
 
       <p class="app-shell__subtitle">{t("app.subtitle")}</p>
 
+      {currentReport && <GapIndicators gaps={currentReport.gaps} />}
+
       {hasGroups && currentReport ? (
         <>
           {scanState.value === "scanning" && <p data-testid="scan-running">{t("scan.running")}</p>}
-          <OverviewTable
-            groups={currentReport.projectGroups}
-            totals={currentReport.totals}
-            expandedKeys={expandedGroups.value}
-            sortField={sessionSortField.value}
-            sortDirection={sessionSortDirection.value}
-            onToggle={toggleGroup}
-            onSort={setSessionSort}
-          />
+          <div class="toolbar-row">
+            <GroupingToggle value={currentGrouping} onChange={setGrouping} />
+            {!modelPanelOpen.value && (
+              <button
+                type="button"
+                class="model-panel-open"
+                data-testid="model-panel-open"
+                onClick={() => setModelPanelOpen(true)}
+              >
+                {t("models.openPanel")}
+              </button>
+            )}
+          </div>
+          <div
+            class={
+              modelPanelOpen.value ? "content-grid" : "content-grid content-grid--panel-closed"
+            }
+          >
+            <OverviewTable
+              groups={groups}
+              totals={currentReport.totals}
+              expandedKeys={expandedKeysFor(currentGrouping)}
+              sortField={sessionSortField.value}
+              sortDirection={sessionSortDirection.value}
+              onToggle={(groupKey) => toggleGroup(currentGrouping, groupKey)}
+              onSort={setSessionSort}
+              grouping={currentGrouping}
+              selectedKey={selectedKey}
+              onSelect={(groupKey) => toggleGroupScope(currentGrouping, groupKey)}
+            />
+            {modelPanelOpen.value && panelBreakdown && panelTotals && (
+              <ModelPanel
+                breakdown={panelBreakdown}
+                totals={panelTotals}
+                scope={scope}
+                onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
+                onClose={() => setModelPanelOpen(false)}
+              />
+            )}
+          </div>
         </>
       ) : (
         <EmptyState />

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { basename as pathBasename } from "node:path";
 import { describe, expect, it } from "vitest";
-import { folderKey, folderRefOf, NO_FOLDER_KEY } from "./folder-grouping.js";
+import { folderKey, folderRefOf, isNetworkDrive, NO_FOLDER_KEY } from "./folder-grouping.js";
 import { parseManifestText } from "./manifest.js";
 import { createProblemCollector } from "./problems.js";
 import type { ConnectedFolder } from "./project-types.js";
@@ -80,5 +80,17 @@ describe("folderRefOf", () => {
     if (ref.kind === "folders") {
       expect(ref.folders[0].kind).toBe("network-drive");
     }
+  });
+});
+
+describe("isNetworkDrive", () => {
+  it("is true only for the exact network-drive kind", () => {
+    expect(isNetworkDrive(folder({ kind: "network-drive" }))).toBe(true);
+    expect(isNetworkDrive(folder({ kind: "local" }))).toBe(false);
+    expect(isNetworkDrive(folder({ kind: "Network-Drive" }))).toBe(false);
+  });
+
+  it("a folder with a null kind is not a network drive", () => {
+    expect(isNetworkDrive(folder({ kind: null }))).toBe(false);
   });
 });

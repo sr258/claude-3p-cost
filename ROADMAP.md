@@ -298,6 +298,11 @@ comparators.
 
 ### S10 — Model breakdown, folder grouping, data gaps
 
+**Status. Done 2026-09-18.** Plan:
+`docs/plans/S10-model-breakdown-folder-grouping-gaps.md`. Run as one session.
+US-2.3's **session**-scoped model breakdown is deferred to S11, where it joins
+the session detail view; S10 ships the global and project/folder-group scopes.
+
 **Goal.** Finish the overview.
 
 **Scope.** Per-model breakdown with cost shares, global and scoped, variants

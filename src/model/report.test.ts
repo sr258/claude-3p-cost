@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { AuditSession, ModelUsageRecord, RequestRecord } from "./audit-types.js";
 import type { Problem } from "./problems.js";
 import type { ConnectedFolder, ProjectRef, ResolvedSession, SessionMeta } from "./project-types.js";
+import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "./totals.js";
 import {
   buildReport,
   compareGroupRows,
   compareSessionRows,
   costShare,
+  findGroup,
   sessionLastActivity,
+  unattributedCostMicroUsd,
 } from "./report.js";
 
 const EMPTY_USAGE = {
@@ -300,6 +303,49 @@ describe("buildReport", () => {
   it("costShare returns 0 for a zero total", () => {
     expect(costShare(100, 0)).toBe(0);
     expect(costShare(50, 200)).toBe(0.25);
+  });
+
+  it("unattributedCostMicroUsd is the authoritative total minus the model-usage sum", () => {
+    const totals = { ...EMPTY_TOTALS, costMicroUsd: 100 };
+    const models = { ...EMPTY_MODEL_BREAKDOWN, costMicroUsd: 60 };
+    expect(unattributedCostMicroUsd(totals, models)).toBe(40);
+  });
+
+  it("unattributedCostMicroUsd is zero when modelUsage covers the whole total", () => {
+    const totals = { ...EMPTY_TOTALS, costMicroUsd: 100 };
+    const models = { ...EMPTY_MODEL_BREAKDOWN, costMicroUsd: 100 };
+    expect(unattributedCostMicroUsd(totals, models)).toBe(0);
+  });
+
+  it("unattributedCostMicroUsd clamps a negative difference to zero", () => {
+    const totals = { ...EMPTY_TOTALS, costMicroUsd: 50 };
+    const models = { ...EMPTY_MODEL_BREAKDOWN, costMicroUsd: 100 };
+    expect(unattributedCostMicroUsd(totals, models)).toBe(0);
+  });
+
+  it("findGroup returns the group with the given key", () => {
+    const sessions = [
+      makeSession("s1", [makeRequest({ costMicroUsd: 1 })], {
+        project: { kind: "named", spaceId: "p1", name: "One" },
+      }),
+    ];
+    const report = buildReport(sessions, []);
+    expect(findGroup(report.projectGroups, "p1")?.key).toBe("p1");
+  });
+
+  it("findGroup returns null for a null key", () => {
+    const report = buildReport([], []);
+    expect(findGroup(report.projectGroups, null)).toBeNull();
+  });
+
+  it("findGroup returns null for a key no group carries", () => {
+    const sessions = [
+      makeSession("s1", [makeRequest({ costMicroUsd: 1 })], {
+        project: { kind: "named", spaceId: "p1", name: "One" },
+      }),
+    ];
+    const report = buildReport(sessions, []);
+    expect(findGroup(report.projectGroups, "vanished")).toBeNull();
   });
 
   it("comparators are stable and total in both directions", () => {

@@ -11,6 +11,7 @@ import type {
   CostTotals,
   GroupLabel,
   GroupRow,
+  ModelBreakdown,
   Report,
   SessionRow,
   TimeBucket,
@@ -260,6 +261,31 @@ export function buildReport(
 /** part / total as a 0..1 ratio; 0 when total is 0. Not a display rounding. */
 export function costShare(partMicroUsd: number, totalMicroUsd: number): number {
   return totalMicroUsd === 0 ? 0 : partMicroUsd / totalMicroUsd;
+}
+
+/**
+ * `totals.costMicroUsd - models.costMicroUsd`, clamped at 0. Cost carried by
+ * a `result` line that named no `modelUsage` key. Never given a share (plan
+ * §2 Q5) -- `ModelBreakdown.costMicroUsd` is deliberately not the
+ * authoritative total, so this is the honest remainder rather than a rounding
+ * artefact. A negative difference would mean `modelUsage` over-counts, which
+ * no observed data does; clamping to 0 keeps a parser bug from ever drawing a
+ * negative bar instead of surfacing it.
+ */
+export function unattributedCostMicroUsd(totals: CostTotals, models: ModelBreakdown): number {
+  return Math.max(0, totals.costMicroUsd - models.costMicroUsd);
+}
+
+/**
+ * The group with this key, or null. The panel's scope is derived through
+ * this, so a key for a group that vanished on a rescan falls back silently to
+ * the global scope (plan §2 Q12). Keys are never pruned.
+ */
+export function findGroup(groups: readonly GroupRow[], key: string | null): GroupRow | null {
+  if (key === null) {
+    return null;
+  }
+  return groups.find((group) => group.key === key) ?? null;
 }
 
 export type SortDirection = "asc" | "desc";

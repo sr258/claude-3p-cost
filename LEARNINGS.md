@@ -9,6 +9,34 @@ Newest entry first.
 
 ---
 
+- **`no-irregular-whitespace` does not catch a raw U+00A0 inside a string
+  literal.** The rule's `skipStrings` option defaults to `true`, so an
+  `eslint.config.js` entry of `{ skipTemplates: true }` widens an already-open
+  door, and a comment there claiming string or JSX text is not exempt is wrong.
+  Every invisible non-breaking space in a test expectation passes lint silently.
+  Derive expected strings from `formatCurrency` / `formatPercent` rather than
+  typing them out, because `Intl` emits U+00A0 and not U+0020.
+- **A literal U+0000 in a CSS attribute selector can never match.** CSS
+  tokenisation replaces a NUL with U+FFFD before the selector engine sees it, so
+  `[data-group-key="…U+0000…"]` silently matches nothing. Playwright's
+  `toHaveAttribute` compares attribute values in JS and is unaffected: locate a
+  NUL-keyed row by index or another non-CSS route, then pin it with a
+  `toHaveAttribute` on the key so the assertion stays real.
+- **Preact keeps `false` for `data-*` and `aria-*` attributes and drops it for
+  every other attribute name.** `data-selected={false}` renders
+  `data-selected="false"`; the same expression on a non-hyphenated name removes
+  the attribute entirely. Assert both branches, or a test that checks only the
+  `true` case cannot distinguish `"false"` from absent.
+- **Verify a fixture's "makes the wrong implementation fail" property by
+  breaking the implementation.** One-line patches — always use the first
+  grouping, always use the global breakdown — take minutes and turn a claim into
+  a failure count. Do it once for whichever fixture property a plan calls
+  load-bearing, and restore the patched file byte-for-byte afterwards.
+- **The NUL-byte scan covers `src plugins scripts e2e test` and not `docs/`,
+  where raw NULs are already sitting.** Committed plan documents contain them,
+  written while describing a NUL-prefixed sentinel key. Prose about a sentinel
+  value is exactly where the byte gets in, so either widen the scan or write the
+  escape in documents too.
 - **`hasAttribute("onclick")` is a vacuous assertion in Preact.** JSX event
   props are attached with `addEventListener` and never produce an `onclick`
   content attribute, so `expect(el.hasAttribute("onclick")).toBe(false)` passes

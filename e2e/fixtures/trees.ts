@@ -3,6 +3,8 @@
  * value is invented — nothing copied, quoted or paraphrased from the
  * reference tree, which is not in Git and never will be (plan §0.4).
  */
+import { folderKey, folderRefOf, NO_FOLDER_KEY } from "../../src/model/folder-grouping.js";
+import { projectKey } from "../../src/model/project-assignment.js";
 import type { FakeTree } from "../support/fake-tauri-plugin.js";
 
 const HOST_ENVIRONMENT = Object.freeze({
@@ -387,6 +389,237 @@ export const drilldownTree: FakeTree = Object.freeze({
     [`${DRILLDOWN_PROFILE}/cccc3333/audit.jsonl`]: CCCC_AUDIT,
     [`${DRILLDOWN_PROFILE}/dddd4444/audit.jsonl`]: DDDD_AUDIT,
     [`${DRILLDOWN_PROFILE}/eeee5555/audit.jsonl`]: EEEE_AUDIT,
+  }),
+  hostEnvironment: HOST_ENVIRONMENT,
+});
+
+// ─── groupingTree (S10, US-1.5, US-2.3, US-2.4) ────────────────────────────
+// Every value invented (plan §0.4); nothing copied, quoted or paraphrased
+// from the reference tree. `overviewTree` and `drilldownTree` above are
+// untouched. Two properties are requirements on this fixture, not remarks
+// (plan §0.3 item 2, §8): the project grouping and the folder grouping must
+// yield a DIFFERENT group count and a different row order (an implementation
+// that ignores its `grouping` argument would otherwise pass), and at least
+// two groups must have genuinely different model MIXES, not merely different
+// totals (an implementation that ignores its scope would otherwise pass
+// every scope spec).
+
+const GROUPING_ROOT = "C:/Users/e2e/AppData/Local/Claude-3p/local-agent-mode-sessions";
+const GROUPING_PROFILE = `${GROUPING_ROOT}/acct-1/profile-1`;
+
+export const GROUPING_NEBULA_SPACE_ID = "space-g-nebula";
+export const GROUPING_QUARTZ_SPACE_ID = "space-g-quartz";
+/** The `spaces.json` display names -- fixture data, not translated UI text. */
+export const GROUPING_NEBULA_NAME = "Grouping Nebula";
+export const GROUPING_QUARTZ_NAME = "Grouping Quartz";
+
+const GROUPING_APP_FOLDER_PATH = "C:/Users/e2e/Documents/projects/app";
+const GROUPING_NAS_FOLDER_PATH = "//nas/reports";
+const GROUPING_ONE_FOLDER_PATH = "C:/Users/e2e/Documents/projects/one";
+const GROUPING_TWO_FOLDER_PATH = "C:/Users/e2e/Documents/projects/two";
+
+/** Hover-text expectations: the full path, never shown as visible row text. */
+export const GROUPING_APP_FOLDER_TITLE = GROUPING_APP_FOLDER_PATH;
+export const GROUPING_NAS_FOLDER_TITLE = GROUPING_NAS_FOLDER_PATH;
+
+function folder(
+  path: string,
+  kind: string | null,
+): { display: string; path: string; kind: string | null } {
+  return { display: path, path, kind };
+}
+
+/** The exact project-grouping keys `projectKey` produces for this fixture. */
+export const GROUPING_PROJECT_GROUP_KEYS = [
+  GROUPING_NEBULA_SPACE_ID,
+  GROUPING_QUARTZ_SPACE_ID,
+  projectKey({ kind: "none" }),
+] as const;
+
+/** The exact folder-grouping keys `folderKey` produces for this fixture. */
+export const GROUPING_APP_FOLDER_KEY = folderKey(
+  folderRefOf([folder(GROUPING_APP_FOLDER_PATH, "local")]),
+);
+export const GROUPING_NAS_FOLDER_KEY = folderKey(
+  folderRefOf([folder(GROUPING_NAS_FOLDER_PATH, "network-drive")]),
+);
+export const GROUPING_ONE_TWO_FOLDER_KEY = folderKey(
+  folderRefOf([
+    folder(GROUPING_ONE_FOLDER_PATH, "local"),
+    folder(GROUPING_TWO_FOLDER_PATH, "local"),
+  ]),
+);
+export const GROUPING_NO_FOLDER_KEY = NO_FOLDER_KEY;
+
+export const GROUPING_FOLDER_GROUP_KEYS = [
+  GROUPING_APP_FOLDER_KEY,
+  GROUPING_NAS_FOLDER_KEY,
+  GROUPING_ONE_TWO_FOLDER_KEY,
+  GROUPING_NO_FOLDER_KEY,
+] as const;
+
+/** `max(0, started - completed)`: nebula-a contributes 1, quartz-b contributes 2. */
+export const GROUPING_OPEN_REQUESTS = 3;
+/** The lone session with no manifest at all (`gnomanifest`). */
+export const GROUPING_SESSIONS_WITHOUT_MANIFEST = 1;
+export const GROUPING_MISSING_MANIFEST_COST_USD = 18.4;
+export const GROUPING_ARCHIVED_SESSIONS = 1;
+
+function groupingResultLine(fields: {
+  readonly timestamp: string;
+  readonly totalCostUsd: number;
+  readonly sessionId: string;
+  readonly modelUsage?: Record<string, unknown>;
+}): string {
+  return JSON.stringify({
+    type: "result",
+    timestamp: fields.timestamp,
+    total_cost_usd: fields.totalCostUsd,
+    duration_ms: 10_000,
+    duration_api_ms: 9_000,
+    num_turns: 1,
+    is_error: false,
+    session_id: fields.sessionId,
+    ...(fields.modelUsage ? { modelUsage: fields.modelUsage } : {}),
+  });
+}
+
+// nebula-a: both claude-opus-5 AND its "[1m]" variant, at DIFFERENT costs
+// (US-2.3's variant-distinctness criterion), archived, one open request.
+const GNEBULA_A_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-opus-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  groupingResultLine({
+    timestamp: "2026-04-01T09:00:00.000Z",
+    totalCostUsd: 800.0,
+    sessionId: "gnebula1-full-uuid",
+    modelUsage: {
+      "claude-opus-5": { costUSD: 600.0, inputTokens: 4000, outputTokens: 8000 },
+      "claude-opus-5[1m]": { costUSD: 200.0, inputTokens: 4000, outputTokens: 6000 },
+    },
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  // One unmatched "started": no matching "completed" -> one open request.
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  "",
+].join("\n");
+
+// nebula-b: shares nebula-a's folder (the "two sessions, one local folder"
+// requirement) and the same project, but a different (smaller) model mix.
+const GNEBULA_B_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-opus-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  groupingResultLine({
+    timestamp: "2026-04-02T09:00:00.000Z",
+    totalCostUsd: 50.0,
+    sessionId: "gnebula2-full-uuid",
+    modelUsage: {
+      "claude-opus-5": { costUSD: 50.0, inputTokens: 500, outputTokens: 900 },
+    },
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+// quartz-a: its folder is marked "network-drive" via resolvedFolderKinds
+// (the userSelectedFolders fallback can never carry a kind — plan §0.2 item
+// 1). A genuinely different model mix from nebula's (sonnet, not opus).
+const GQUARTZ_A_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  groupingResultLine({
+    timestamp: "2026-04-03T09:00:00.000Z",
+    totalCostUsd: 300.0,
+    sessionId: "gquartz1-full-uuid",
+    modelUsage: {
+      "claude-sonnet-5": { costUSD: 300.0, inputTokens: 2000, outputTokens: 4000 },
+    },
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+// quartz-b: a TWO-folder set (one bucket, two basenames), a result line with
+// NO modelUsage at all (the unattributed-row fixture point, plan §2 Q5), and
+// two unmatched "started" lines (2 more open requests).
+const GQUARTZ_B_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  groupingResultLine({
+    timestamp: "2026-04-04T09:00:00.000Z",
+    totalCostUsd: 40.0,
+    sessionId: "gquartz2-full-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  "",
+].join("\n");
+
+// No manifest at all: the sessions-without-manifest gap chip and its cost,
+// and (since a session with no manifest carries no folders) the no-folder
+// bucket in the folder grouping.
+const GNOMANIFEST_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  groupingResultLine({
+    timestamp: "2026-04-05T09:00:00.000Z",
+    totalCostUsd: GROUPING_MISSING_MANIFEST_COST_USD,
+    sessionId: "gnomanifest-full-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+export const groupingTree: FakeTree = Object.freeze({
+  directories: Object.freeze([]),
+  files: Object.freeze({
+    [`${GROUPING_PROFILE}/spaces.json`]: JSON.stringify([
+      { id: GROUPING_NEBULA_SPACE_ID, name: GROUPING_NEBULA_NAME },
+      { id: GROUPING_QUARTZ_SPACE_ID, name: GROUPING_QUARTZ_NAME },
+    ]),
+    [`${GROUPING_PROFILE}/local_gnebula1-manifest-uuid.json`]: JSON.stringify({
+      title: "Grouping nebula kickoff",
+      spaceId: GROUPING_NEBULA_SPACE_ID,
+      model: "claude-opus-5",
+      isArchived: true,
+      resolvedFolderKinds: [{ display: GROUPING_APP_FOLDER_PATH, kind: "local" }],
+    }),
+    [`${GROUPING_PROFILE}/local_gnebula2-manifest-uuid.json`]: JSON.stringify({
+      title: "Grouping nebula follow-up",
+      spaceId: GROUPING_NEBULA_SPACE_ID,
+      model: "claude-opus-5",
+      resolvedFolderKinds: [{ display: GROUPING_APP_FOLDER_PATH, kind: "local" }],
+    }),
+    [`${GROUPING_PROFILE}/local_gquartz1-manifest-uuid.json`]: JSON.stringify({
+      title: "Grouping quartz network drive",
+      spaceId: GROUPING_QUARTZ_SPACE_ID,
+      model: "claude-sonnet-5",
+      resolvedFolderKinds: [{ display: GROUPING_NAS_FOLDER_PATH, kind: "network-drive" }],
+    }),
+    [`${GROUPING_PROFILE}/local_gquartz2-manifest-uuid.json`]: JSON.stringify({
+      title: "Grouping quartz dual folder",
+      spaceId: GROUPING_QUARTZ_SPACE_ID,
+      model: "claude-sonnet-5",
+      resolvedFolderKinds: [
+        { display: GROUPING_ONE_FOLDER_PATH, kind: "local" },
+        { display: GROUPING_TWO_FOLDER_PATH, kind: "local" },
+      ],
+    }),
+    // gnomanifest has no manifest file at all -> ProjectRef "none", FolderRef "none".
+    [`${GROUPING_PROFILE}/gnebula1/audit.jsonl`]: GNEBULA_A_AUDIT,
+    [`${GROUPING_PROFILE}/gnebula2/audit.jsonl`]: GNEBULA_B_AUDIT,
+    [`${GROUPING_PROFILE}/gquartz1/audit.jsonl`]: GQUARTZ_A_AUDIT,
+    [`${GROUPING_PROFILE}/gquartz2/audit.jsonl`]: GQUARTZ_B_AUDIT,
+    [`${GROUPING_PROFILE}/gnomanifest/audit.jsonl`]: GNOMANIFEST_AUDIT,
   }),
   hostEnvironment: HOST_ENVIRONMENT,
 });

@@ -6,6 +6,7 @@ import {
   formatDateTime,
   formatDuration,
   formatNumber,
+  formatPercent,
 } from "./format.js";
 
 describe("format", () => {
@@ -86,6 +87,17 @@ describe("format", () => {
     // collation orders it with its base letter "A", before "Zulu".
     expect(compareText("de", "Ärger", "Zulu")).toBeLessThan(0);
     expect(["Zulu", "Ärger"].sort((a, b) => compareText("de", a, b))).toEqual(["Ärger", "Zulu"]);
+  });
+
+  it("formatPercent renders a locale-appropriate percent with one fraction digit", () => {
+    // German Intl output uses U+00A0 (non-breaking space) before the sign.
+    expect(formatPercent("de", 0.784)).toBe("78,4 %");
+    expect(formatPercent("en", 0.784)).toBe("78.4%");
+  });
+
+  it("formatPercent of a zero ratio renders zero percent", () => {
+    expect(formatPercent("de", 0)).toBe("0 %");
+    expect(formatPercent("en", 0)).toBe("0%");
   });
 
   it("compareText orders by base letter before case, in the way the active locale expects", () => {

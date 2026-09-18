@@ -28,3 +28,18 @@ export function folderRefOf(folders: readonly ConnectedFolder[]): FolderRef {
 export function folderKey(ref: FolderRef): string {
   return ref.kind === "none" ? NO_FOLDER_KEY : ref.key;
 }
+
+/**
+ * The exact `kind` string a manifest's `resolvedFolderKinds` entry carries
+ * for a network drive (S10 plan §6.1). Only that entry point can ever
+ * populate `kind` at all -- the `userSelectedFolders` fallback in
+ * `manifest.ts` always sets `kind: null` (plan §0.2 item 1), so a folder
+ * known only through that fallback can never be marked, which is the data's
+ * limit and not a bug S10 fixes.
+ */
+export const NETWORK_DRIVE_KIND = "network-drive";
+
+/** Exact match only. A null or unrecognised kind is not a network drive. */
+export function isNetworkDrive(folder: ConnectedFolder): boolean {
+  return folder.kind === NETWORK_DRIVE_KIND;
+}

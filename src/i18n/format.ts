@@ -82,6 +82,17 @@ export function formatCurrency(locale: Locale, value: number, currency = "USD"):
   return `${number} ${currency}`;
 }
 
+/**
+ * `Intl.NumberFormat` with `style: "percent"` and one fraction digit
+ * (S10 plan §6.9). The one new locale-sensitive thing S10 adds; the model
+ * layer's `costShare` stays a bare ratio and never formats it (LEARNINGS —
+ * `localeCompare` is the model layer's back door to i18n; the same rule
+ * applies to any other `Intl` call).
+ */
+export function formatPercent(locale: Locale, ratio: number): string {
+  return getNumberFormatter(locale, { style: "percent", maximumFractionDigits: 1 }).format(ratio);
+}
+
 export function formatDate(
   locale: Locale,
   value: Date | number,

@@ -16,6 +16,7 @@ import {
   formatDateTime,
   formatDuration,
   formatNumber,
+  formatPercent,
 } from "./format.js";
 import { translate, translatePlural } from "./translate.js";
 import type { PluralBase, TArgs, TranslationKey } from "./types.js";
@@ -46,6 +47,10 @@ export function tDateTime(value: Date | number): string {
 
 export function tDuration(ms: number): string {
   return formatDuration(locale.value, ms);
+}
+
+export function tPercent(ratio: number): string {
+  return formatPercent(locale.value, ratio);
 }
 
 /** The active-locale `Intl.Collator` comparison, for injecting into `compareSessionRows`. */

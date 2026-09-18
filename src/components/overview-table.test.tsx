@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { t } from "../i18n/index.js";
 import { locale } from "../state/app-state.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
 import type { CostTotals, GroupRow, SessionRow } from "../model/report-types.js";
@@ -41,6 +42,7 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
 
 const NOOP_TOGGLE = () => {};
 const NOOP_SORT = () => {};
+const NOOP_SELECT = () => {};
 
 function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTableProps {
   return {
@@ -51,6 +53,9 @@ function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTabl
     sortDirection: "desc",
     onToggle: NOOP_TOGGLE,
     onSort: NOOP_SORT,
+    grouping: "project",
+    selectedKey: null,
+    onSelect: NOOP_SELECT,
     ...overrides,
   };
 }
@@ -258,6 +263,137 @@ describe("OverviewTable", () => {
     render(<OverviewTable {...defaultProps({ groups, expandedKeys: new Set(["a", "b"]) })} />);
 
     expect(screen.getAllByTestId("session-table")).toHaveLength(2);
+  });
+
+  it("the first column header follows the grouping prop", () => {
+    // Expected strings come from the catalogue, never quoted here: a quoted
+    // English label is the translated-text trap (LEARNINGS), and it would
+    // pass in one locale and fail in the other.
+    const { unmount } = render(<OverviewTable {...defaultProps({ grouping: "project" })} />);
+    const projectHeader = screen.getByTestId("overview-table").querySelector("thead th");
+    expect(projectHeader?.textContent).toBe(t("overview.columnProject"));
+    unmount();
+
+    render(<OverviewTable {...defaultProps({ grouping: "folder" })} />);
+    const folderHeader = screen.getByTestId("overview-table").querySelector("thead th");
+    expect(folderHeader?.textContent).toBe(t("overview.columnFolder"));
+    // The two keys must genuinely differ, or the assertion above is vacuous.
+    expect(t("overview.columnFolder")).not.toBe(t("overview.columnProject"));
+  });
+
+  it("a folder group row renders a network-drive badge only on the network folder", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "f1",
+        label: {
+          kind: "folder",
+          folder: {
+            kind: "folders",
+            key: "f1",
+            folders: [
+              { display: "local-src", path: "/home/me/local-src", kind: "local" },
+              { display: "share", path: "//nas/share", kind: "network-drive" },
+            ],
+          },
+        },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, grouping: "folder" })} />);
+
+    expect(screen.getAllByTestId("network-drive-badge")).toHaveLength(1);
+  });
+
+  it("a folder group row carries the full path as hover text and never as visible text", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "f1",
+        label: {
+          kind: "folder",
+          folder: {
+            kind: "folders",
+            key: "f1",
+            folders: [{ display: "src", path: "/home/me/projects/src", kind: "local" }],
+          },
+        },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, grouping: "folder" })} />);
+
+    const part = screen.getByTestId("folder-part");
+    expect(part.textContent).toBe("src");
+    expect(part.getAttribute("title")).toBe("/home/me/projects/src");
+    expect(screen.queryByText("/home/me/projects/src")).toBeNull();
+  });
+
+  it("the scope control reflects selection in aria-pressed, not by row colour alone", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+
+    const { unmount } = render(<OverviewTable {...defaultProps({ groups, selectedKey: null })} />);
+    expect(screen.getByTestId("scope-select").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByTestId("group-row").getAttribute("data-selected")).toBe("false");
+    unmount();
+
+    render(<OverviewTable {...defaultProps({ groups, selectedKey: "a" })} />);
+    expect(screen.getByTestId("scope-select").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("group-row").getAttribute("data-selected")).toBe("true");
+  });
+
+  it("activating the scope control calls onSelect with the group key", () => {
+    const onSelect = vi.fn();
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, onSelect })} />);
+    screen.getByTestId("scope-select").click();
+
+    expect(onSelect).toHaveBeenCalledWith("a");
+  });
+
+  it("clicking the scope control does not toggle expansion", () => {
+    // Spies on the toggle callback with a POSITIVE control (a row click that
+    // DOES expand) — an assertion that some attribute is absent would be
+    // vacuous in Preact (LEARNINGS).
+    const onToggle = vi.fn();
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, onToggle })} />);
+    screen.getByTestId("scope-select").click();
+    expect(onToggle).not.toHaveBeenCalled();
+
+    // Positive control: clicking the row itself (outside any button) DOES toggle.
+    screen.getByTestId("group-row").click();
+    expect(onToggle).toHaveBeenCalledWith("a");
+  });
+
+  it("the expanded panel wraps the session table in a scroll container", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessions: [sessionRow({ sessionId: "s1" })],
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, expandedKeys: new Set(["a"]) })} />);
+
+    const scroll = screen.getByTestId("session-table-scroll");
+    expect(within(scroll).getByTestId("session-table")).toBeTruthy();
   });
 
   it("the total row is still the totals prop, not a re-sum of visible rows", () => {

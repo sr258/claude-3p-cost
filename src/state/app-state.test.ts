@@ -54,15 +54,24 @@ vi.mock("../services/scan.js", () => ({
 
 import { scanDiscovery } from "../services/scan.js";
 import {
+  clearGroupScope,
   expandedGroups,
+  expandedKeysFor,
+  grouping,
   lastScanAt,
+  modelPanelOpen,
   report,
   runScan,
   scanState,
+  selectedGroupKey,
+  selectedGroups,
   sessionSortDirection,
   sessionSortField,
+  setGrouping,
+  setModelPanelOpen,
   setSessionSort,
   toggleGroup,
+  toggleGroupScope,
 } from "./app-state.js";
 
 describe("runScan", () => {
@@ -111,19 +120,82 @@ describe("expandedGroups / toggleGroup", () => {
     expandedGroups.value = new Set();
   });
 
+  // Amended for S10 (plan §0.3 item 5, §9.1): toggleGroup gains a leading
+  // `grouping` argument. Both cases below keep the exact property they were
+  // written to guard — "toggling twice removes the key" and "toggling keeps
+  // other expanded keys" — now scoped to one grouping ("project").
   it("toggleGroup adds a key and toggling again removes it", () => {
-    toggleGroup("a");
-    expect(expandedGroups.value.has("a")).toBe(true);
-    toggleGroup("a");
-    expect(expandedGroups.value.has("a")).toBe(false);
+    toggleGroup("project", "a");
+    expect(expandedKeysFor("project").has("a")).toBe(true);
+    toggleGroup("project", "a");
+    expect(expandedKeysFor("project").has("a")).toBe(false);
   });
 
   it("toggleGroup keeps other expanded keys", () => {
-    toggleGroup("a");
-    toggleGroup("b");
-    expect([...expandedGroups.value].sort()).toEqual(["a", "b"]);
-    toggleGroup("a");
-    expect([...expandedGroups.value]).toEqual(["b"]);
+    toggleGroup("project", "a");
+    toggleGroup("project", "b");
+    expect([...expandedKeysFor("project")].sort()).toEqual(["a", "b"]);
+    toggleGroup("project", "a");
+    expect([...expandedKeysFor("project")]).toEqual(["b"]);
+  });
+
+  it("expansion is tracked per grouping: the same key open under projects is closed under folders", () => {
+    toggleGroup("project", "shared-key");
+    expect(expandedKeysFor("project").has("shared-key")).toBe(true);
+    expect(expandedKeysFor("folder").has("shared-key")).toBe(false);
+  });
+});
+
+describe("setGrouping", () => {
+  it("switches the grouping signal", () => {
+    grouping.value = "project";
+    setGrouping("folder");
+    expect(grouping.value).toBe("folder");
+    setGrouping("project");
+    expect(grouping.value).toBe("project");
+  });
+});
+
+describe("selectedGroups / toggleGroupScope / clearGroupScope", () => {
+  beforeEach(() => {
+    selectedGroups.value = { project: null, folder: null };
+  });
+
+  it("toggleGroupScope selects a group and selecting it again returns to all", () => {
+    toggleGroupScope("project", "p1");
+    expect(selectedGroupKey("project")).toBe("p1");
+    toggleGroupScope("project", "p1");
+    expect(selectedGroupKey("project")).toBeNull();
+  });
+
+  it("scope is tracked per grouping: switching grouping restores that grouping's scope", () => {
+    toggleGroupScope("project", "p1");
+    toggleGroupScope("folder", "f1");
+    expect(selectedGroupKey("project")).toBe("p1");
+    expect(selectedGroupKey("folder")).toBe("f1");
+  });
+
+  it("clearGroupScope returns the panel to all", () => {
+    toggleGroupScope("project", "p1");
+    clearGroupScope("project");
+    expect(selectedGroupKey("project")).toBeNull();
+  });
+
+  it("a scope key for a group that vanished is kept, not pruned", () => {
+    toggleGroupScope("project", "vanished");
+    // No rescan-triggered pruning: the signal itself is untouched by anything
+    // but an explicit toggle/clear call.
+    expect(selectedGroupKey("project")).toBe("vanished");
+  });
+});
+
+describe("modelPanelOpen / setModelPanelOpen", () => {
+  it("closes and reopens the panel", () => {
+    modelPanelOpen.value = true;
+    setModelPanelOpen(false);
+    expect(modelPanelOpen.value).toBe(false);
+    setModelPanelOpen(true);
+    expect(modelPanelOpen.value).toBe(true);
   });
 });
 
@@ -152,14 +224,31 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
   });
 
   it("expansion and sort state survive a rescan", async () => {
-    toggleGroup("a");
+    toggleGroup("project", "a");
     setSessionSort("title");
     vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
 
     await runScan();
 
-    expect(expandedGroups.value.has("a")).toBe(true);
+    expect(expandedKeysFor("project").has("a")).toBe(true);
     expect(sessionSortField.value).toBe("title");
     expect(sessionSortDirection.value).toBe("asc");
+  });
+
+  it("grouping, expansion, sort and scope all survive a rescan", async () => {
+    setGrouping("folder");
+    toggleGroup("folder", "f1");
+    toggleGroupScope("folder", "f1");
+    setSessionSort("duration");
+    setModelPanelOpen(false);
+    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+
+    await runScan();
+
+    expect(grouping.value).toBe("folder");
+    expect(expandedKeysFor("folder").has("f1")).toBe(true);
+    expect(selectedGroupKey("folder")).toBe("f1");
+    expect(sessionSortField.value).toBe("duration");
+    expect(modelPanelOpen.value).toBe(false);
   });
 });

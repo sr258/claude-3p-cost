@@ -129,24 +129,98 @@ export function removeManualRoot(path: string): void {
 }
 
 /**
- * US-2.2 drill-down state (S9 plan §2 Q9, §6.5). Kept outside `report`, and
- * `runScan()` above never touches any of the three signals here — that is
- * what makes expansion and sort survive a rescan, and it is the property S20
+ * US-2.4's project/folder toggle (S10 plan §2 Q6, §6.8). A signal only —
+ * nothing is written to `localStorage`. Persistence belongs to the settings
+ * screen (S15+/S21); a second ad-hoc `localStorage` key now would be a
+ * migration later. The signal itself survives a rescan (see below).
+ */
+export type Grouping = "project" | "folder";
+
+export const grouping = signal<Grouping>("project");
+
+export function setGrouping(next: Grouping): void {
+  grouping.value = next;
+}
+
+/**
+ * US-2.2 drill-down state (S9 plan §2 Q9, §6.5), extended in S10 (plan §2 Q8)
+ * to track expansion PER GROUPING. Kept outside `report`, and `runScan()`
+ * below never touches any of the signals here — that is what makes
+ * expansion, scope and sort survive a rescan, and it is the property S20
  * will lean on for "UI state preserved across an update". `GroupRow.key` is
  * stable across rebuilds (`projectKey`/`folderKey`), so stale keys for groups
  * that no longer exist are harmless and are deliberately NOT pruned: pruning
  * would collapse a group that reappears on a later scan.
+ *
+ * `projectKey({ kind: "none" })` and `NO_FOLDER_KEY` are both `"\u0000none"`
+ * (plan §0.2 item 2), so a single flat set would couple "no project" with
+ * "no folder" expansion/selection. Keys are therefore prefixed
+ * `` `${grouping}:${GroupRow.key}` `` — plain ASCII with a colon; no new
+ * `U+0000` is introduced anywhere in this session (LEARNINGS).
  */
 export const expandedGroups = signal<ReadonlySet<string>>(new Set());
 
-export function toggleGroup(groupKey: string): void {
+function prefixedKey(g: Grouping, groupKey: string): string {
+  return `${g}:${groupKey}`;
+}
+
+export function toggleGroup(g: Grouping, groupKey: string): void {
+  const key = prefixedKey(g, groupKey);
   const next = new Set(expandedGroups.value);
-  if (next.has(groupKey)) {
-    next.delete(groupKey);
+  if (next.has(key)) {
+    next.delete(key);
   } else {
-    next.add(groupKey);
+    next.add(key);
   }
   expandedGroups.value = next;
+}
+
+/** The raw (unprefixed) keys expanded under this grouping. */
+export function expandedKeysFor(g: Grouping): ReadonlySet<string> {
+  const prefix = `${g}:`;
+  const result = new Set<string>();
+  for (const key of expandedGroups.value) {
+    if (key.startsWith(prefix)) {
+      result.add(key.slice(prefix.length));
+    }
+  }
+  return result;
+}
+
+/**
+ * US-2.3's per-row scope selection (plan §2 Q12), tracked per grouping for
+ * the same reason expansion is: both groupings' empty buckets share one key
+ * string. `null` is the global scope. Never pruned on a rescan — the panel
+ * derives its scope through `findGroup`, which falls back silently to the
+ * global scope when the stored key names a group that vanished.
+ */
+export const selectedGroups = signal<Readonly<Record<Grouping, string | null>>>({
+  project: null,
+  folder: null,
+});
+
+export function selectedGroupKey(g: Grouping): string | null {
+  return selectedGroups.value[g];
+}
+
+/** The same key again -> null (deselect back to the global scope). */
+export function toggleGroupScope(g: Grouping, groupKey: string): void {
+  const current = selectedGroups.value[g];
+  selectedGroups.value = {
+    ...selectedGroups.value,
+    [g]: current === groupKey ? null : groupKey,
+  };
+}
+
+export function clearGroupScope(g: Grouping): void {
+  selectedGroups.value = { ...selectedGroups.value, [g]: null };
+}
+
+/** US-2.3's side panel visibility (plan §2 Q7). Default open. */
+export const modelPanelOpen = signal<boolean>(true);
+
+export function setModelPanelOpen(open: boolean): void {
+  modelPanelOpen.value = open;
 }
 
 /** Each field's own default direction when it becomes newly active (plan §2 Q3). */
