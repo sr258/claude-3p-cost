@@ -9,6 +9,32 @@ Newest entry first.
 
 ---
 
+- **A name-level static guard must know the project's own import aliases, and
+  is only as good as its last negative control.** `read-only-guarantee.test.ts`
+  matched `invoke(` literally while the code it guards imports
+  `{ invoke as tauriInvoke }` — a write command called through the alias passed
+  the guard clean. Five of six injected breakages were caught; the sixth was
+  found only because the control was run rather than reasoned about. Any
+  analyser keyed on an identifier has to resolve the binding, or it certifies
+  exactly the idiom the codebase uses. Re-run the controls whenever the guarded
+  code changes style.
+- **`fs:allow-open` is a write-capable permission**: `commands::open` honours a
+  caller-supplied `OpenOptions`, so the read-only property of US-1.6 lives in
+  the call sites, not in the capability file. Never "simplify" the permission
+  list to `fs:read-all` or `fs:default`.
+- **The fs plugin's `FileHandle.read` returns `null` at EOF, not `0`** — a read
+  loop that breaks on `0` hangs the app, one that breaks on `null` is correct.
+  And `FileHandle.close()` goes through `plugin:resources|close`, not a
+  `plugin:fs|*` command, so a capability listing only `fs:allow-*` is
+  sufficient; there is no missing permission to "fix".
+- **Check a plan's boundary values against the pure function that consumes
+  them.** S7's plan had Rust populate `local_app_data`/`app_data` on macOS;
+  followed literally, `rootCandidates()` would have emitted four macOS paths
+  labelled `%LOCALAPPDATA%\…`. Returning `None` was right and the plan was
+  wrong.
+- **NFR-8 deviation bookkeeping lives in two files.** `CLAUDE.md`'s stack table
+  and `REQUIREMENTS.md`'s NFR-8 list both enumerate deviations; updating only
+  the first leaves them disagreeing. Edit both together.
 - **Grep for leaked reference data case-insensitively.** A case-sensitive search
   for the reference tree's project names reports a clean repository while
   several committed documents contain them capitalised. Any privacy check over

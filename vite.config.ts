@@ -21,5 +21,9 @@ export default defineConfig({
     // this session adds and needs its own unit tests, but the glob stays
     // no wider than these two entries — test/fixtures/ stays outside it.
     include: ["src/**/*.{test,spec}.{ts,tsx}", "plugins/**/*.test.ts"],
+    // @testing-library/preact's auto-cleanup registers itself onto a
+    // global `afterEach` (S7 plan §7.3), which this project does not set
+    // via `globals: true` and should not start setting.
+    setupFiles: ["./test/setup-component-tests.ts"],
   },
 });

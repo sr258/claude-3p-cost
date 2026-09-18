@@ -27,6 +27,14 @@ Phase 4  Hand off      you          check the evidence, update the roadmap, prop
 | Implementer (Phase 2) | Sonnet | Executes an approved plan against explicit acceptance criteria |
 | Reviewer (Phase 3) | Opus | Finds the plausible-looking-but-wrong, which is the expensive class of bug here |
 
+Planner, implementer and reviewer are not spawned as `general-purpose` with a
+`model` override — this environment runs on Microsoft Foundry, where the
+generic model aliases (`opus`, `sonnet`) do not resolve correctly. Instead each
+is its own agent type in `.claude/agents/` (`session-planner`,
+`session-implementer`, `session-reviewer`), pinned to the explicit Foundry
+model IDs `claude-opus-5` and `claude-sonnet-5` in its frontmatter. Spawn them
+by name; do not pass a `model` argument to `Agent` for these three.
+
 The orchestrator is the main session, so its model is whatever `/model` is set to
 — set it to Opus before starting a session. It cannot be changed partway through,
 because the orchestrator is one continuous conversation across all four phases.
@@ -78,7 +86,7 @@ if the user asks while one is running, say it is still running.
 Spawn a planning agent:
 
 ```
-Agent(subagent_type: "general-purpose", model: "opus",
+Agent(subagent_type: "session-planner",
       description: "Plan session S<N>")
 ```
 
@@ -141,7 +149,7 @@ user has not approved.
 ## Phase 2 — Implement (Sonnet subagent)
 
 ```
-Agent(subagent_type: "general-purpose", model: "sonnet",
+Agent(subagent_type: "session-implementer",
       description: "Implement session S<N>")
 ```
 
@@ -178,7 +186,7 @@ lost is useful information, not a failure.
 ## Phase 3 — Review (Opus subagent)
 
 ```
-Agent(subagent_type: "general-purpose", model: "opus",
+Agent(subagent_type: "session-reviewer",
       description: "Review session S<N>")
 ```
 

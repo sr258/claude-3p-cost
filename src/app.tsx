@@ -1,19 +1,22 @@
 /**
  * Root application component.
  *
- * S2 scaffold: an app bar with the language switcher over a placeholder
- * stat card that exercises all three formatters (text, number/plural,
- * currency, date). Real data collection arrives from S6/S7 onward.
+ * S7: the S2 demo stat card is gone. The whole content area is the US-1.1
+ * empty state — the searched locations, the US-1.2 chosen-folder list and
+ * the provisional summary strip (S7 plan §6). The initial scan is kicked
+ * off once, on mount; a real report view arrives from S8 onward.
  */
-import { t, tCurrency, tDateTime, tPlural } from "./i18n/index.js";
+import { useEffect } from "preact/hooks";
+import { t } from "./i18n/index.js";
 import { LanguageSwitcher } from "./components/language-switcher.js";
-
-// Invented demo figures — not from reference-material/. 1413.58 is NFR-7's
-// own currency formatting example.
-const DEMO_TOTAL_COST = 1413.58;
-const DEMO_SESSION_COUNT = 42;
+import { EmptyState } from "./components/empty-state.js";
+import { runScan } from "./state/app-state.js";
 
 export function App() {
+  useEffect(() => {
+    void runScan();
+  }, []);
+
   return (
     <main class="app-shell" data-testid="app-shell">
       <header class="app-bar">
@@ -24,22 +27,7 @@ export function App() {
 
       <p class="app-shell__subtitle">{t("app.subtitle")}</p>
 
-      <dl class="stat-card">
-        <div class="stat-card__row">
-          <dt>{t("card.totalCost")}</dt>
-          <dd data-testid="demo-cost">{tCurrency(DEMO_TOTAL_COST)}</dd>
-        </div>
-        <div class="stat-card__row">
-          <dt>{t("card.sessions")}</dt>
-          <dd data-testid="demo-sessions">{tPlural("card.sessionCount", DEMO_SESSION_COUNT)}</dd>
-        </div>
-        <div class="stat-card__row">
-          <dt>{t("card.lastScan")}</dt>
-          <dd data-testid="demo-date">{tDateTime(new Date())}</dd>
-        </div>
-      </dl>
-
-      <p class="app-shell__placeholder">{t("placeholder.noData")}</p>
+      <EmptyState />
     </main>
   );
 }

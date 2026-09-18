@@ -6,6 +6,7 @@
  */
 import type { DetectedEncoding } from "../model/encoding.js";
 import type { RootCandidate } from "../model/discovery-paths.js";
+import { loadManualRoots } from "./root-store.js";
 
 export type FileKind = "file" | "directory";
 
@@ -100,6 +101,6 @@ export async function createFileSystem(): Promise<FileSystem> {
     const { createDevFileSystem } = await import("./filesystem-dev.js");
     return createDevFileSystem();
   }
-  // TODO(S7): return createTauriFileSystem() once the fs plugin is wired up.
-  return nullFileSystem;
+  const { createTauriFileSystem } = await import("./filesystem-tauri.js");
+  return createTauriFileSystem({ manualRoots: loadManualRoots() });
 }

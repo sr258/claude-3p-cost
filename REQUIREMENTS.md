@@ -454,7 +454,9 @@ Acceptance criteria:
   strict/ES2022, Vite, plain CSS with custom properties, Vitest + jsdom, Tauri
   v2, npm, GitHub Actions. Deviations require justification in `CLAUDE.md`.
   Deliberate deviations so far: `@tauri-apps/plugin-fs` for filesystem access
-  and watching, a charting library (US-3.3), a translation layer (NFR-7), and
+  and watching, `@tauri-apps/plugin-dialog` for the US-1.2 folder picker (S7),
+  `@testing-library/preact` as a dev-only component-testing tool (S7), a
+  charting library (US-3.3), a translation layer (NFR-7), and
   Playwright for end-to-end tests (NFR-9). CalView's HTTP plugin, keyring and
   Outlook COM code are not carried over.
 - **NFR-9 — Testability.** Two layers, both running in CI.

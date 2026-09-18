@@ -88,9 +88,10 @@ recorded here.
 | Localization | German + English, own lightweight translation layer + `Intl` |
 | Filesystem access | `@tauri-apps/plugin-fs` (read-only scopes) |
 | File watching | Tauri fs watch |
+| Folder picker | `@tauri-apps/plugin-dialog` — an NFR-8 deviation (S7): US-1.2 needs a native folder picker; this is Tauri's sanctioned plugin rather than a hand-rolled `rfd` command, and it adds no network capability (NFR-5 intact). |
 | Charts | A lightweight, maintained SVG/Canvas library — see "Charting library" below |
 | Desktop Packaging | Tauri v2 |
-| Unit testing | Vitest with jsdom |
+| Unit testing | Vitest with jsdom + `@testing-library/preact` for components (S7 devDependency, NFR-8 deviation: the first `.tsx` component needed a component-testing tool, and the alternative was an untested component or poking at `document.body.innerHTML` by hand). Convention: query by accessible role where one exists, `data-testid` otherwise, never by translated text — so a language switch cannot break a test. |
 | End-to-end testing | Playwright, against the Vite build with a faked fs layer |
 | Package Manager | npm |
 | CI | GitHub Actions, Windows runner, NSIS installer + portable exe |
