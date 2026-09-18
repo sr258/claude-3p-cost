@@ -9,6 +9,28 @@ Newest entry first.
 
 ---
 
+- **A bundle-grep guard must key on a string that a live code path evaluates,
+  and the only proof that it does is grepping a built artefact.** A bare
+  `export const MARKER = "…"` that nothing imports is tree-shaken out of the
+  output, after which the grep passes cleanly over a bundle that does contain
+  the thing being guarded against. Interpolate the marker into an
+  always-reachable failure path, and verify against the built file rather than
+  the source.
+- **A quoted English string in an end-to-end assertion is the translated-text
+  trap in its easiest disguise.** `toHaveText("1 session")` reads as a
+  numeric-shape assertion and passes, yet breaks under a catalogue edit or the
+  other locale — including in a file whose own header promises never to assert
+  on translated text. Derive the expected string from the catalogue, and grep
+  new specs for quoted English words, not only for obviously translated labels.
+- **ESLint's `ignores` does not read `.gitignore`.** Every build output
+  directory has to be named in both files, or `eslint .` lints a minified
+  bundle and buries the real findings under hundreds of errors from generated
+  code. Adding a build output is a two-file edit.
+- **`CostTotals` carries no session count, so any "total sessions" figure in
+  the UI is necessarily derived.** Summing the group session counts is correct
+  only while every grouping is a partition; a filter, or a grouping that puts
+  one session in two buckets, breaks it silently and nothing in the types says
+  so.
 - **A name-level static guard must know the project's own import aliases, and
   is only as good as its last negative control.** `read-only-guarantee.test.ts`
   matched `invoke(` literally while the code it guards imports
@@ -49,8 +71,12 @@ Newest entry first.
   unremarked.** Two shipped in one session — a NUL guard and a map-key
   separator — both semantically correct and both invisible in every editor and
   diff, one whitespace-normalising tool away from silently changing meaning.
-  Write `\u0000`, and keep a scan for byte `0x00` over `src/`, `plugins/` and
-  `test/`.
+  Write `\u0000`, and keep a scan for byte `0x00` over `src/`, `plugins/`,
+  `scripts/`, `e2e/` and `test/`. One way such a byte gets in is the editing
+  tools themselves: an escape sequence typed into a file-writing parameter can
+  be decoded before it reaches disk, yielding a raw `0x00` rather than the six
+  literal characters. Double-escape it, and let the byte scan settle which of
+  the two actually landed.
 - **A spec that boots a Vite dev server needs `// @vitest-environment node`.**
   Under jsdom, esbuild aborts with `Invariant violation: "new
   TextEncoder().encode("") instanceof Uint8Array" is incorrectly false` —

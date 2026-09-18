@@ -9,7 +9,13 @@
  * without a reload.
  */
 import { locale } from "../state/app-state.js";
-import { formatCurrency, formatDate, formatDateTime, formatNumber } from "./format.js";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+} from "./format.js";
 import { translate, translatePlural } from "./translate.js";
 import type { PluralBase, TArgs, TranslationKey } from "./types.js";
 
@@ -35,6 +41,10 @@ export function tDate(value: Date | number, options?: Intl.DateTimeFormatOptions
 
 export function tDateTime(value: Date | number): string {
   return formatDateTime(locale.value, value);
+}
+
+export function tDuration(ms: number): string {
+  return formatDuration(locale.value, ms);
 }
 
 export type { Locale, Params, PluralBase, TranslationKey } from "./types.js";

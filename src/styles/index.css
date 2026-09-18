@@ -227,3 +227,57 @@ body {
   font-size: var(--c3p-font-s);
   color: var(--c3p-text-secondary);
 }
+
+/* ─── Overview table (S8, US-2.1) ────────────────────────────────────────── */
+
+.overview-table {
+  width: 100%;
+  max-width: 60rem;
+  border-collapse: collapse;
+  font-size: var(--c3p-font-s);
+}
+
+.overview-table th,
+.overview-table td {
+  padding: var(--c3p-space-s) var(--c3p-space-m);
+  text-align: left;
+}
+
+.overview-table th:not(:first-child),
+.overview-table td:not(:first-child) {
+  text-align: right;
+}
+
+.overview-table thead th {
+  border-bottom: 1px solid var(--c3p-border);
+  color: var(--c3p-text-secondary);
+  font-weight: 600;
+}
+
+.overview-table tbody tr {
+  border-bottom: 1px solid var(--c3p-contrast-10);
+}
+
+.overview-table tfoot tr {
+  border-top: 1px solid var(--c3p-border);
+  font-weight: 600;
+}
+
+/* ─── Status bar (S8) ─────────────────────────────────────────────────────── */
+
+.status-bar {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--c3p-space-s);
+  padding-top: var(--c3p-space-s);
+  border-top: 1px solid var(--c3p-border);
+  font-size: var(--c3p-font-xs);
+  color: var(--c3p-text-secondary);
+}
+
+.status-bar span:not(:last-child)::after {
+  content: "·";
+  margin-left: var(--c3p-space-s);
+}

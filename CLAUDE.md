@@ -310,6 +310,32 @@ filesystem — not against `reference-material/`, which is not in Git. Assert on
 accessible roles and `data-testid`, never on translated text, so the specs work
 in both locales; one spec runs the overview path in each.
 
+**The fake filesystem is injected through a Vite alias, only in an `e2e`
+build mode** (S8). `npm run build:e2e` runs `vite build --mode e2e --outDir
+dist-e2e`; under that mode only, `vite.config.ts` aliases
+`@tauri-apps/plugin-fs` and `@tauri-apps/api/core` to
+`e2e/support/fake-tauri-plugin.ts`, an in-memory stand-in for the exact read
+surface `src/services/filesystem-tauri.ts` imports (`exists`, `stat`,
+`readDir`, `readFile`, `open({ read: true })`, `invoke`) — no write-capable
+export exists in that module at all. `e2e/support/app.ts`'s `gotoApp()`
+installs the fixture tree on `globalThis.__C3P_E2E_TREE__` and a dummy
+`__TAURI_INTERNALS__` via `addInitScript`, before navigation, so
+`createFileSystem()` takes its Tauri branch inside the page. `src/` stays
+entirely test-unaware: nothing under `src/` imports anything under `e2e/`,
+and the alias only ever applies under `--mode e2e`, never `vite build`'s
+default production mode.
+
+`npm run test:e2e` (`playwright test`) builds and serves `dist-e2e/` itself
+(`playwright.config.ts`'s `webServer.command`), so a stale bundle can never
+be tested by accident, and the separate output directory keeps `dist/` free
+of e2e artefacts. `npm run check:no-fake` greps `dist/` for the fake
+module's marker identifier and fails non-zero on a hit — CI runs it right
+after `npm run build`, before `npm run test:e2e`. That guard's negative
+control (LEARNINGS: a name-level static guard is only as good as its last
+negative control) is run by hand each time the fake changes shape: build in
+`e2e` mode into `dist/` deliberately, confirm the script reports a hit and
+exits non-zero, then rebuild normally and confirm it passes.
+
 The end-to-end regression check — full `reference-material/` tree yields
 1,413.59 USD, 150 sessions, 508 requests, 7 projects — is run manually against
 the local, uncommitted data. (The POC prints 1,413.58: it rounds each session to

@@ -117,4 +117,77 @@ describe("scanDiscovery", () => {
       [2, 2],
     ]);
   });
+
+  function threeSessions(): {
+    fs: ReturnType<typeof createFakeFileSystem>;
+    sessions: readonly DiscoveredSession[];
+  } {
+    const sessions: DiscoveredSession[] = [
+      OK_SESSION,
+      {
+        sessionId: "sess-second",
+        auditPath: "root/acct/profile/sess-second/audit.jsonl",
+        rootPath: "root",
+        accountId: "acct",
+        profileId: "profile",
+      },
+      {
+        sessionId: "sess-third",
+        auditPath: "root/acct/profile/sess-third/audit.jsonl",
+        rootPath: "root",
+        accountId: "acct",
+        profileId: "profile",
+      },
+    ];
+    const fs = createFakeFileSystem({
+      auditLogs: {
+        [sessions[0]!.auditPath]: { lines: basicLines() },
+        [sessions[1]!.auditPath]: { lines: basicLines() },
+        [sessions[2]!.auditPath]: { lines: basicLines() },
+      },
+    });
+    return { fs, sessions };
+  }
+
+  it("emits at least one partial report before resolving", async () => {
+    const { fs, sessions } = threeSessions();
+    const partials: number[] = [];
+
+    const finalReport = await scanDiscovery(fs, discoveryOf(sessions), {
+      partialIntervalMs: 0,
+      onPartial: (partial) => partials.push(partial.sessions.length),
+    });
+
+    expect(partials.length).toBeGreaterThan(0);
+    expect(finalReport.sessions).toHaveLength(3);
+  });
+
+  it("a partial report contains only the sessions parsed so far", async () => {
+    const { fs, sessions } = threeSessions();
+    const partials: number[] = [];
+
+    await scanDiscovery(fs, discoveryOf(sessions), {
+      partialIntervalMs: 0,
+      onPartial: (partial) => partials.push(partial.sessions.length),
+    });
+
+    expect(partials[0]).toBe(1);
+    expect(partials[partials.length - 1]).toBeLessThanOrEqual(3);
+    for (let i = 1; i < partials.length; i += 1) {
+      expect(partials[i]).toBeGreaterThanOrEqual(partials[i - 1]!);
+    }
+  });
+
+  it("the final report is identical whether or not onPartial was supplied", async () => {
+    const first = threeSessions();
+    const withoutPartial = await scanDiscovery(first.fs, discoveryOf(first.sessions));
+
+    const second = threeSessions();
+    const withPartial = await scanDiscovery(second.fs, discoveryOf(second.sessions), {
+      partialIntervalMs: 0,
+      onPartial: () => {},
+    });
+
+    expect(withPartial).toEqual(withoutPartial);
+  });
 });

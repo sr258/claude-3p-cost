@@ -1,3 +1,4 @@
+import { translate } from "./translate.js";
 import type { Locale } from "./types.js";
 
 /**
@@ -70,4 +71,34 @@ export function formatDate(
 
 export function formatDateTime(locale: Locale, value: Date | number): string {
   return formatDate(locale, value, { dateStyle: "medium", timeStyle: "short" });
+}
+
+/**
+ * Worded units, never Intl.DurationFormat: that API is absent on Node 22,
+ * which is what CI runs (verified during S8 planning:
+ * `typeof Intl.DurationFormat === "undefined"`). Digits go through
+ * `formatNumber`; only the unit assembly is ours, exactly as with
+ * `formatCurrency` above.
+ *
+ * Rounds toward zero on each component; a negative or non-finite input is
+ * treated as zero. Below one minute it reports whole seconds, so `0` renders
+ * as the zero-seconds form rather than an empty string.
+ */
+export function formatDuration(locale: Locale, ms: number): string {
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  const totalSeconds = Math.trunc(safeMs / 1000);
+  const hours = Math.trunc(totalSeconds / 3600);
+  const minutes = Math.trunc((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours >= 1) {
+    return translate(locale, "duration.hoursMinutes", {
+      hours: formatNumber(locale, hours),
+      minutes: formatNumber(locale, minutes),
+    });
+  }
+  if (minutes >= 1) {
+    return translate(locale, "duration.minutes", { minutes: formatNumber(locale, minutes) });
+  }
+  return translate(locale, "duration.seconds", { seconds: formatNumber(locale, seconds) });
 }

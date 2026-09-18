@@ -58,6 +58,8 @@ export const discovery = signal<Discovery | null>(null);
 export const report = signal<Report | null>(null);
 export const manualRoots = signal<readonly string[]>(loadManualRoots());
 export const pickMessage = signal<"none" | "no-session-data" | "failed">("none");
+/** Epoch ms of the last SUCCESSFUL scan. Null before the first one. */
+export const lastScanAt = signal<number | null>(null);
 
 let cachedFs: Promise<FileSystem> | null = null;
 
@@ -85,9 +87,14 @@ export async function runScan(): Promise<void> {
     const fs = await getFileSystem();
     const foundDiscovery = await discover(fs);
     discovery.value = foundDiscovery;
-    const foundReport = await scanDiscovery(fs, foundDiscovery);
+    const foundReport = await scanDiscovery(fs, foundDiscovery, {
+      onPartial: (partial) => {
+        report.value = partial;
+      },
+    });
     report.value = foundReport;
     scanState.value = "done";
+    lastScanAt.value = Date.now();
   } catch {
     // NFR-3: a scan failure is recorded, never thrown.
     scanState.value = "failed";

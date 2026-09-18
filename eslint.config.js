@@ -8,6 +8,9 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      "dist-e2e/**",
+      "playwright-report/**",
+      "test-results/**",
       "src-tauri/**",
       "node_modules/**",
       // Gitignored local research inputs, never our code (see CLAUDE.md).

@@ -55,9 +55,9 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S5 | ✅ Aggregation | US-2.1, US-2.3, US-2.4 (model only) | S4 |
 | **Phase 3 — Getting at the filesystem** ||||
 | S6 | ✅ Filesystem interface + dev middleware | NFR-13, US-1.1 (dev) | S3 |
-| S7 | Tauri filesystem implementation | US-1.1, US-1.2, US-1.6 | S6 |
+| S7 | ✅ Tauri filesystem implementation | US-1.1, US-1.2, US-1.6 | S6 |
 | **Phase 4 — The main view** ||||
-| S8 | Project overview + Playwright harness | US-2.1, NFR-9, NFR-2 | S5, S6, S2 |
+| S8 | ✅ Project overview + Playwright harness | US-2.1, NFR-9, NFR-2 | S5, S6, S2 |
 | S9 | Session drill-down | US-2.2 | S8 |
 | S10 | Model breakdown, folder grouping, data gaps | US-2.3, US-2.4, US-1.5 (UI) | S9 |
 | **Phase 5 — Depth** ||||
@@ -257,6 +257,10 @@ and put the logic in S6's shared code, which the dev server *does* exercise.
 ## Phase 4 — The main view
 
 ### S8 — Project overview + Playwright harness
+
+**Status. Done 2026-09-18.** Plan:
+`docs/plans/S8-project-overview-playwright-harness.md`. Run as one session
+rather than the S8a/S8b split this entry allows for.
 
 **Goal.** The screen from the vision statement: open the app, see what it cost.
 

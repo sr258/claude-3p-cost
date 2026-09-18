@@ -7,10 +7,28 @@ import { readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [preact(), licensesPlugin(), referenceFsPlugin()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+  },
+  resolve: {
+    // e2e mode only (S8 plan §2 Q1, §8.3): the Playwright harness's fake
+    // stands in for the real Tauri fs plugin and `invoke`. `src/` stays
+    // entirely test-unaware — nothing here branches for any other mode.
+    alias:
+      mode === "e2e"
+        ? [
+            {
+              find: "@tauri-apps/plugin-fs",
+              replacement: new URL("./e2e/support/fake-tauri-plugin.ts", import.meta.url).pathname,
+            },
+            {
+              find: "@tauri-apps/api/core",
+              replacement: new URL("./e2e/support/fake-tauri-plugin.ts", import.meta.url).pathname,
+            },
+          ]
+        : [],
   },
   test: {
     environment: "jsdom",
@@ -26,4 +44,4 @@ export default defineConfig({
     // via `globals: true` and should not start setting.
     setupFiles: ["./test/setup-component-tests.ts"],
   },
-});
+}));
