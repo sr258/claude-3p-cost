@@ -11,6 +11,7 @@ const LOCALE_TAG: Record<Locale, string> = { de: "de-DE", en: "en-GB" };
 
 const numberFormatterCache = new Map<string, Intl.NumberFormat>();
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const collatorCache = new Map<Locale, Intl.Collator>();
 
 function getNumberFormatter(locale: Locale, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
   const cacheKey = `${locale}|${JSON.stringify(options ?? {})}`;
@@ -33,6 +34,26 @@ function getDateFormatter(
     dateFormatterCache.set(cacheKey, formatter);
   }
   return formatter;
+}
+
+function getCollator(locale: Locale): Intl.Collator {
+  let collator = collatorCache.get(locale);
+  if (!collator) {
+    collator = new Intl.Collator(LOCALE_TAG[locale]);
+    collatorCache.set(locale, collator);
+  }
+  return collator;
+}
+
+/**
+ * The one place a real, locale-aware text comparison happens (S9 plan §2
+ * Q10). `src/model/report.ts` bans `localeCompare` and defaults to code-unit
+ * order; the UI injects this function, bound to the active locale, so a
+ * German user sorting titles gets "Ärger" ordered with its base letter
+ * instead of after "Z".
+ */
+export function compareText(locale: Locale, a: string, b: string): number {
+  return getCollator(locale).compare(a, b);
 }
 
 export function formatNumber(

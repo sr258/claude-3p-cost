@@ -185,3 +185,208 @@ export const overviewTree: FakeTree = Object.freeze({
   }),
   hostEnvironment: HOST_ENVIRONMENT,
 });
+
+// ─── drilldownTree (S9, US-2.2) ────────────────────────────────────────────
+// Every value invented (plan §0.2); nothing copied, quoted or paraphrased
+// from the reference tree. `overviewTree` above is untouched: its four
+// one-session groups are asserted on by e2e/overview.spec.ts.
+
+const DRILLDOWN_ROOT = "C:/Users/e2e/AppData/Local/Claude-3p/local-agent-mode-sessions";
+const DRILLDOWN_PROFILE = `${DRILLDOWN_ROOT}/acct-1/profile-1`;
+
+function drilldownResultLine(fields: {
+  readonly timestamp: string;
+  readonly totalCostUsd: number;
+  readonly durationMs: number;
+  readonly durationApiMs: number;
+  readonly numTurns: number;
+  readonly sessionId: string;
+  readonly outputTokens: number;
+  readonly cacheReadInputTokens: number;
+}): string {
+  return JSON.stringify({
+    type: "result",
+    timestamp: fields.timestamp,
+    total_cost_usd: fields.totalCostUsd,
+    duration_ms: fields.durationMs,
+    duration_api_ms: fields.durationApiMs,
+    num_turns: fields.numTurns,
+    is_error: false,
+    session_id: fields.sessionId,
+    usage: {
+      output_tokens: fields.outputTokens,
+      cache_read_input_tokens: fields.cacheReadInputTokens,
+    },
+  });
+}
+
+function drilldownAudit(fields: {
+  readonly timestamp: string;
+  readonly totalCostUsd: number;
+  readonly durationMs: number;
+  readonly durationApiMs: number;
+  readonly numTurns: number;
+  readonly sessionId: string;
+  readonly outputTokens: number;
+  readonly cacheReadInputTokens: number;
+}): string {
+  return [
+    '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+    '{"type":"command_lifecycle","state":"queued"}',
+    '{"type":"command_lifecycle","state":"started"}',
+    drilldownResultLine(fields),
+    '{"type":"command_lifecycle","state":"completed"}',
+    "",
+  ].join("\n");
+}
+
+/**
+ * The four-session "Aurora Team" project (plan §6.6). The requirement is not
+ * a remark: cost order, title order and session-id order are all mutually
+ * different, so a comparator that sorts the wrong field — or one that falls
+ * through to the sessionId tie-break — cannot produce the expected row order
+ * by accident (LEARNINGS: build a test so the wrong implementation gives a
+ * different answer).
+ *
+ *   cost desc:      cccc3333(140.00) > bbbb2222(75.00) > dddd4444(45.00) > aaaa1111(20.50)
+ *   title asc:       "Data import"(dddd) < "Kickoff plan"(cccc) < "Zulu retro"(aaaa) < ""(bbbb, last)
+ *   sessionId asc:   aaaa1111 < bbbb2222 < cccc3333 < dddd4444
+ *
+ * All three sequences are distinct permutations of the same four ids.
+ */
+export const AURORA_SPACE_ID = "space-aurora";
+export const SOLSTICE_SPACE_ID = "space-solstice";
+
+/**
+ * aaaa1111: archived. bbbb2222: manifest present but title-less, with no
+ * `lastActivityAt` — a session with genuinely NO manifest at all is always
+ * `ProjectRef` "none" (`resolveProject` in `src/model/project-assignment.ts`
+ * returns `{ kind: "none" }` whenever `meta === null`), which is a DIFFERENT
+ * group key from a named space's — so it cannot be one of a named project's
+ * four sessions. This manifest reproduces the same observable properties the
+ * plan's "no manifest at all" was after (the untitled placeholder,
+ * `sessionLastActivity`'s fallback to the audit timestamp) without that
+ * contradiction. See the implementer's report for the full reasoning.
+ */
+export const AURORA_ARCHIVED_SESSION_ID = "aaaa1111";
+export const AURORA_UNTITLED_SESSION_ID = "bbbb2222";
+/** cccc3333: manifest lastActivityAt (2026-03-05) differs from its audit timestamp (2026-03-01). */
+export const AURORA_MANIFEST_ACTIVITY_SESSION_ID = "cccc3333";
+
+export const AURORA_COST_DESC_ORDER = ["cccc3333", "bbbb2222", "dddd4444", "aaaa1111"] as const;
+export const AURORA_TITLE_ASC_ORDER = ["dddd4444", "cccc3333", "aaaa1111", "bbbb2222"] as const;
+export const AURORA_SESSION_ID_ASC_ORDER = [
+  "aaaa1111",
+  "bbbb2222",
+  "cccc3333",
+  "dddd4444",
+] as const;
+
+export const SOLSTICE_SESSION_ID = "eeee5555";
+
+const AAAA_AUDIT = drilldownAudit({
+  timestamp: "2026-02-20T09:00:00.000Z",
+  totalCostUsd: 20.5,
+  durationMs: 15_000,
+  durationApiMs: 14_000,
+  numTurns: 2,
+  sessionId: "aaaa1111-full-uuid",
+  outputTokens: 500,
+  cacheReadInputTokens: 1_000,
+});
+
+const BBBB_AUDIT = drilldownAudit({
+  timestamp: "2026-02-25T09:00:00.000Z",
+  totalCostUsd: 75.0,
+  durationMs: 40_000,
+  durationApiMs: 38_000,
+  numTurns: 3,
+  sessionId: "bbbb2222-full-uuid",
+  outputTokens: 2_000,
+  cacheReadInputTokens: 5_000,
+});
+
+// The manifest's lastActivityAt (below, 2026-03-05) differs from this audit
+// timestamp on purpose — sessionLastActivity's precedence is observable
+// rather than assumed (plan §6.6).
+const CCCC_AUDIT = drilldownAudit({
+  timestamp: "2026-03-01T09:00:00.000Z",
+  totalCostUsd: 140.0,
+  durationMs: 90_000,
+  durationApiMs: 85_000,
+  numTurns: 6,
+  sessionId: "cccc3333-full-uuid",
+  outputTokens: 9_000,
+  cacheReadInputTokens: 20_000,
+});
+
+const DDDD_AUDIT = drilldownAudit({
+  timestamp: "2026-03-02T09:00:00.000Z",
+  totalCostUsd: 45.0,
+  durationMs: 20_000,
+  durationApiMs: 19_000,
+  numTurns: 2,
+  sessionId: "dddd4444-full-uuid",
+  outputTokens: 1_200,
+  cacheReadInputTokens: 2_500,
+});
+
+const EEEE_AUDIT = drilldownAudit({
+  timestamp: "2026-03-03T09:00:00.000Z",
+  totalCostUsd: 30.0,
+  durationMs: 12_000,
+  durationApiMs: 11_000,
+  numTurns: 1,
+  sessionId: "eeee5555-full-uuid",
+  outputTokens: 800,
+  cacheReadInputTokens: 1_500,
+});
+
+export const drilldownTree: FakeTree = Object.freeze({
+  directories: Object.freeze([]),
+  files: Object.freeze({
+    [`${DRILLDOWN_PROFILE}/spaces.json`]: JSON.stringify([
+      { id: AURORA_SPACE_ID, name: "Aurora Team" },
+      { id: SOLSTICE_SPACE_ID, name: "Solstice Ops" },
+    ]),
+    [`${DRILLDOWN_PROFILE}/local_aaaa1111-manifest-uuid.json`]: JSON.stringify({
+      title: "Zulu retro",
+      spaceId: AURORA_SPACE_ID,
+      model: "claude-sonnet-5",
+      isArchived: true,
+      lastActivityAt: Date.parse("2026-02-20T09:00:00.000Z"),
+    }),
+    // bbbb2222: manifest present, but no title and no lastActivityAt, so
+    // sessionLastActivity falls back entirely to the audit timestamp (plan
+    // §6.6) — see the AURORA_UNTITLED_SESSION_ID comment above for why this
+    // is not literally "no manifest at all".
+    [`${DRILLDOWN_PROFILE}/local_bbbb2222-manifest-uuid.json`]: JSON.stringify({
+      spaceId: AURORA_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${DRILLDOWN_PROFILE}/local_cccc3333-manifest-uuid.json`]: JSON.stringify({
+      title: "Kickoff plan",
+      spaceId: AURORA_SPACE_ID,
+      model: "claude-sonnet-5",
+      lastActivityAt: Date.parse("2026-03-05T12:00:00.000Z"),
+    }),
+    [`${DRILLDOWN_PROFILE}/local_dddd4444-manifest-uuid.json`]: JSON.stringify({
+      title: "Data import",
+      spaceId: AURORA_SPACE_ID,
+      model: "claude-sonnet-5",
+      lastActivityAt: Date.parse("2026-03-02T09:00:00.000Z"),
+    }),
+    [`${DRILLDOWN_PROFILE}/local_eeee5555-manifest-uuid.json`]: JSON.stringify({
+      title: "Solo check",
+      spaceId: SOLSTICE_SPACE_ID,
+      model: "claude-sonnet-5",
+      lastActivityAt: Date.parse("2026-03-03T09:00:00.000Z"),
+    }),
+    [`${DRILLDOWN_PROFILE}/aaaa1111/audit.jsonl`]: AAAA_AUDIT,
+    [`${DRILLDOWN_PROFILE}/bbbb2222/audit.jsonl`]: BBBB_AUDIT,
+    [`${DRILLDOWN_PROFILE}/cccc3333/audit.jsonl`]: CCCC_AUDIT,
+    [`${DRILLDOWN_PROFILE}/dddd4444/audit.jsonl`]: DDDD_AUDIT,
+    [`${DRILLDOWN_PROFILE}/eeee5555/audit.jsonl`]: EEEE_AUDIT,
+  }),
+  hostEnvironment: HOST_ENVIRONMENT,
+});

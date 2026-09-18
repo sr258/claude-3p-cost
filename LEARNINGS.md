@@ -9,6 +9,28 @@ Newest entry first.
 
 ---
 
+- **`hasAttribute("onclick")` is a vacuous assertion in Preact.** JSX event
+  props are attached with `addEventListener` and never produce an `onclick`
+  content attribute, so `expect(el.hasAttribute("onclick")).toBe(false)` passes
+  whether or not a handler exists. A test asserting an element is *not*
+  clickable must spy on `addEventListener` and carry a positive control on an
+  element that is wired — otherwise it certifies exactly the boundary it was
+  written to guard.
+- **An injectable dependency whose default agrees with the injection on every
+  fixture is untested by construction.** Ignoring the injected option entirely
+  can pass the entire suite: every ASCII string orders identically under code
+  units and under an `Intl.Collator`. Test an injection point with a value no
+  default can produce — for a comparator, a deliberately reversed one.
+- **A session with no manifest cannot sit inside a named project's group.**
+  `resolveProject` maps `meta === null` to `{ kind: "none" }` and `projectKey`
+  to the `" none"` bucket, a different group key from any named space. A fixture
+  wanting untitled or missing-activity behaviour *inside* a named space needs a
+  manifest that carries `spaceId` and simply omits the fields under test: that
+  yields `title: ""` and `lastActivityAt: null` without moving the group.
+- **Amending a test because a fallback changed its inputs can silently delete
+  the coverage the test existed for.** When a plan sanctions amending an
+  assertion, check what property the original was guarding and where that
+  property now lives.
 - **A bundle-grep guard must key on a string that a live code path evaluates,
   and the only proof that it does is grepping a built artefact.** A bare
   `export const MARKER = "…"` that nothing imports is tree-shaken out of the
@@ -77,6 +99,17 @@ Newest entry first.
   be decoded before it reaches disk, yielding a raw `0x00` rather than the six
   literal characters. Double-escape it, and let the byte scan settle which of
   the two actually landed.
+- **The NUL-byte scan needs the right command, and it is not the obvious one.**
+  `grep -rIl $'\0' …` is truncated by bash to `grep -rIl "" …`: it matches every
+  text file and, because of `-I`, skips the one file that actually contains a
+  NUL. `grep -rlP '\x00' …` fails too — without `-a`, grep classifies a
+  NUL-containing file as binary and `-l` reports nothing. The working form is
+  `grep -rlaP '\x00' src plugins scripts e2e test`, expecting no output; verify
+  it against a synthetic NUL-containing file rather than trusting it. Compounding
+  this, `grep` in this development shell is a bash function wrapping `ugrep` with
+  `-I`, `--hidden` and `--exclude-dir` forced on, so any command relying on stock
+  `grep` behaviour — especially binary-file handling — does something else.
+  `command grep` bypasses the wrapper.
 - **A spec that boots a Vite dev server needs `// @vitest-environment node`.**
   Under jsdom, esbuild aborts with `Invariant violation: "new
   TextEncoder().encode("") instanceof Uint8Array" is incorrectly false` —

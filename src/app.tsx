@@ -22,7 +22,16 @@ import { LanguageSwitcher } from "./components/language-switcher.js";
 import { EmptyState } from "./components/empty-state.js";
 import { OverviewTable } from "./components/overview-table.js";
 import { StatusBar } from "./components/status-bar.js";
-import { report, runScan, scanState } from "./state/app-state.js";
+import {
+  expandedGroups,
+  report,
+  runScan,
+  scanState,
+  sessionSortDirection,
+  sessionSortField,
+  setSessionSort,
+  toggleGroup,
+} from "./state/app-state.js";
 
 export function App() {
   useEffect(() => {
@@ -45,7 +54,15 @@ export function App() {
       {hasGroups && currentReport ? (
         <>
           {scanState.value === "scanning" && <p data-testid="scan-running">{t("scan.running")}</p>}
-          <OverviewTable groups={currentReport.projectGroups} totals={currentReport.totals} />
+          <OverviewTable
+            groups={currentReport.projectGroups}
+            totals={currentReport.totals}
+            expandedKeys={expandedGroups.value}
+            sortField={sessionSortField.value}
+            sortDirection={sessionSortDirection.value}
+            onToggle={toggleGroup}
+            onSort={setSessionSort}
+          />
         </>
       ) : (
         <EmptyState />

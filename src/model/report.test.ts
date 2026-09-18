@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AuditSession, ModelUsageRecord, RequestRecord } from "./audit-types.js";
 import type { Problem } from "./problems.js";
 import type { ConnectedFolder, ProjectRef, ResolvedSession, SessionMeta } from "./project-types.js";
-import { buildReport, compareGroupRows, compareSessionRows, costShare } from "./report.js";
+import {
+  buildReport,
+  compareGroupRows,
+  compareSessionRows,
+  costShare,
+  sessionLastActivity,
+} from "./report.js";
 
 const EMPTY_USAGE = {
   inputTokens: 0,
@@ -333,9 +339,124 @@ describe("buildReport", () => {
     const asc = [...report.sessions].sort(compareSessionRows("lastActivity", "asc"));
     const desc = [...report.sessions].sort(compareSessionRows("lastActivity", "desc"));
     expect(asc.map((s) => s.sessionId)).toEqual(["dated-old", "dated-new", "undated"]);
-    expect(desc.map((s) => s.sessionId)).toEqual(["dated-new", "dated-old", "undated"]);
+    // Amended for S9 (plan §2 Q5, deliberate — see LEARNINGS): "undated" has no
+    // manifest lastActivityAt, but every session here shares the same default
+    // request timestamp (2026-01-01), so sessionLastActivity's audit-timestamp
+    // fallback gives "undated" a far LARGER value than the other two sessions'
+    // tiny manifest epoch-ms values (1_000 / 2_000). It therefore now sorts
+    // FIRST on the descending pass, not last — it is no longer a null value by
+    // the time compareSessionRows sees it.
+    expect(desc.map((s) => s.sessionId)).toEqual(["undated", "dated-new", "dated-old"]);
 
     const groupsDesc = [...report.projectGroups].sort(compareGroupRows("lastActivity", "desc"));
     expect(groupsDesc.map((g) => g.key)).toEqual(["new", "old", "undated"]);
+  });
+
+  it("sorts sessions by title ascending and descending with the injected comparator", () => {
+    const sessions = [
+      makeSession("s-mike", [makeRequest()], { meta: { title: "Mike" } }),
+      makeSession("s-alpha", [makeRequest()], { meta: { title: "Alpha" } }),
+      makeSession("s-zulu", [makeRequest()], { meta: { title: "Zulu" } }),
+    ];
+    const report = buildReport(sessions, []);
+
+    const asc = [...report.sessions].sort(compareSessionRows("title", "asc"));
+    const desc = [...report.sessions].sort(compareSessionRows("title", "desc"));
+    expect(asc.map((s) => s.title)).toEqual(["Alpha", "Mike", "Zulu"]);
+    expect(desc.map((s) => s.title)).toEqual(["Zulu", "Mike", "Alpha"]);
+  });
+
+  it("uses the injected text comparator rather than the code-unit default", () => {
+    // Without this case nothing proves `options.compareText` is consulted at
+    // all: the default and an Intl.Collator agree on every ASCII fixture, so
+    // an implementation that ignored the option would pass every other title
+    // test here (LEARNINGS: build a test so the wrong implementation gives a
+    // different answer). The injected comparator is deliberately the REVERSE
+    // of code-unit order, which no default can produce.
+    const sessions = [
+      makeSession("s-alpha", [makeRequest()], { meta: { title: "Alpha" } }),
+      makeSession("s-mike", [makeRequest()], { meta: { title: "Mike" } }),
+      makeSession("s-zulu", [makeRequest()], { meta: { title: "Zulu" } }),
+    ];
+    const report = buildReport(sessions, []);
+    const reversed = (a: string, b: string): number => (a < b ? 1 : a > b ? -1 : 0);
+
+    const asc = [...report.sessions].sort(
+      compareSessionRows("title", "asc", { compareText: reversed }),
+    );
+    expect(asc.map((s) => s.title)).toEqual(["Zulu", "Mike", "Alpha"]);
+  });
+
+  it("the default title comparator orders by code unit, not host locale", () => {
+    // "Ärger" starts with U+00C4, which sorts AFTER "Z" (U+005A) in code-unit
+    // order, but before it under German collation. The default must give the
+    // code-unit answer; only an injected Intl.Collator may give the other.
+    const sessions = [
+      makeSession("s-umlaut", [makeRequest()], { meta: { title: "Ärger" } }),
+      makeSession("s-zulu", [makeRequest()], { meta: { title: "Zulu" } }),
+    ];
+    const report = buildReport(sessions, []);
+
+    const asc = [...report.sessions].sort(compareSessionRows("title", "asc"));
+    expect(asc.map((s) => s.title)).toEqual(["Zulu", "Ärger"]);
+  });
+
+  it("an empty title sorts last in both directions", () => {
+    const sessions = [
+      makeSession("s-untitled", [makeRequest()], { meta: { title: "" } }),
+      makeSession("s-alpha", [makeRequest()], { meta: { title: "Alpha" } }),
+      makeSession("s-zulu", [makeRequest()], { meta: { title: "Zulu" } }),
+    ];
+    const report = buildReport(sessions, []);
+
+    const asc = [...report.sessions].sort(compareSessionRows("title", "asc"));
+    const desc = [...report.sessions].sort(compareSessionRows("title", "desc"));
+    expect(asc.map((s) => s.sessionId)).toEqual(["s-alpha", "s-zulu", "s-untitled"]);
+    expect(desc.map((s) => s.sessionId)).toEqual(["s-zulu", "s-alpha", "s-untitled"]);
+  });
+
+  it("the title sort is stable on equal titles via sessionId", () => {
+    const sessions = [
+      makeSession("s-b", [makeRequest()], { meta: { title: "Same" } }),
+      makeSession("s-a", [makeRequest()], { meta: { title: "Same" } }),
+    ];
+    const report = buildReport(sessions, []);
+
+    const asc = [...report.sessions].sort(compareSessionRows("title", "asc"));
+    const desc = [...report.sessions].sort(compareSessionRows("title", "desc"));
+    expect(asc.map((s) => s.sessionId)).toEqual(["s-a", "s-b"]);
+    expect(desc.map((s) => s.sessionId)).toEqual(["s-a", "s-b"]);
+  });
+
+  it("sessionLastActivity prefers the manifest value over the audit timestamp", () => {
+    const session = makeSession("s1", [makeRequest({ timestamp: "2020-01-01T00:00:00.000Z" })], {
+      meta: { lastActivityAt: 5_000 },
+    });
+    const report = buildReport([session], []);
+    expect(sessionLastActivity(report.sessions[0]!)).toBe(5_000);
+  });
+
+  it("sessionLastActivity falls back to the last result timestamp when the manifest has none", () => {
+    const session = makeSession("s1", [makeRequest({ timestamp: "2020-01-01T00:00:00.000Z" })], {
+      meta: { lastActivityAt: null },
+    });
+    const report = buildReport([session], []);
+    expect(sessionLastActivity(report.sessions[0]!)).toBe(Date.parse("2020-01-01T00:00:00.000Z"));
+  });
+
+  it("a session with neither manifest activity nor a result timestamp sorts last in both directions", () => {
+    const sessions = [
+      makeSession("s-none", [makeRequest({ timestamp: null })], { meta: { lastActivityAt: null } }),
+      makeSession("s-dated", [makeRequest({ timestamp: "2020-01-01T00:00:00.000Z" })], {
+        meta: { lastActivityAt: null },
+      }),
+    ];
+    const report = buildReport(sessions, []);
+    expect(sessionLastActivity(report.sessions.find((s) => s.sessionId === "s-none")!)).toBeNull();
+
+    const asc = [...report.sessions].sort(compareSessionRows("lastActivity", "asc"));
+    const desc = [...report.sessions].sort(compareSessionRows("lastActivity", "desc"));
+    expect(asc.map((s) => s.sessionId)).toEqual(["s-dated", "s-none"]);
+    expect(desc.map((s) => s.sessionId)).toEqual(["s-dated", "s-none"]);
   });
 });

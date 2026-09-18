@@ -15,6 +15,7 @@ import { effect, signal } from "@preact/signals";
 import { detectLocale } from "../i18n/detect.js";
 import type { Locale } from "../i18n/types.js";
 import type { Report } from "../model/report-types.js";
+import type { SessionSortField, SortDirection } from "../model/report.js";
 import { discover, type Discovery } from "../services/discovery.js";
 import { createFileSystem, type FileSystem } from "../services/filesystem.js";
 import { pickRootFolders, removeRoot } from "../services/folder-picker.js";
@@ -125,4 +126,47 @@ export function removeManualRoot(path: string): void {
   manualRoots.value = removeRoot(path);
   invalidateFileSystemCache();
   void runScan();
+}
+
+/**
+ * US-2.2 drill-down state (S9 plan §2 Q9, §6.5). Kept outside `report`, and
+ * `runScan()` above never touches any of the three signals here — that is
+ * what makes expansion and sort survive a rescan, and it is the property S20
+ * will lean on for "UI state preserved across an update". `GroupRow.key` is
+ * stable across rebuilds (`projectKey`/`folderKey`), so stale keys for groups
+ * that no longer exist are harmless and are deliberately NOT pruned: pruning
+ * would collapse a group that reappears on a later scan.
+ */
+export const expandedGroups = signal<ReadonlySet<string>>(new Set());
+
+export function toggleGroup(groupKey: string): void {
+  const next = new Set(expandedGroups.value);
+  if (next.has(groupKey)) {
+    next.delete(groupKey);
+  } else {
+    next.add(groupKey);
+  }
+  expandedGroups.value = next;
+}
+
+/** Each field's own default direction when it becomes newly active (plan §2 Q3). */
+const DEFAULT_SORT_DIRECTION: Record<SessionSortField, SortDirection> = {
+  cost: "desc",
+  requests: "desc",
+  duration: "desc",
+  lastActivity: "desc",
+  title: "asc",
+};
+
+export const sessionSortField = signal<SessionSortField>("cost");
+export const sessionSortDirection = signal<SortDirection>("desc");
+
+/** Same field -> flip direction. New field -> that field's default direction (plan §2 Q3). */
+export function setSessionSort(field: SessionSortField): void {
+  if (sessionSortField.value === field) {
+    sessionSortDirection.value = sessionSortDirection.value === "asc" ? "desc" : "asc";
+  } else {
+    sessionSortField.value = field;
+    sessionSortDirection.value = DEFAULT_SORT_DIRECTION[field];
+  }
 }

@@ -10,6 +10,7 @@
  */
 import { locale } from "../state/app-state.js";
 import {
+  compareText,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -45,6 +46,11 @@ export function tDateTime(value: Date | number): string {
 
 export function tDuration(ms: number): string {
   return formatDuration(locale.value, ms);
+}
+
+/** The active-locale `Intl.Collator` comparison, for injecting into `compareSessionRows`. */
+export function tCompareText(a: string, b: string): number {
+  return compareText(locale.value, a, b);
 }
 
 export type { Locale, Params, PluralBase, TranslationKey } from "./types.js";

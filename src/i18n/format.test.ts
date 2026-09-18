@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  compareText,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -78,5 +79,19 @@ describe("format", () => {
     // A four-digit hour count forces locale grouping in the hours digit.
     expect(formatDuration("de", ms)).toBe("1.234 Std. 56 Min.");
     expect(formatDuration("en", ms)).toBe("1,234 h 56 min");
+  });
+
+  it("compareText orders umlauts with their base letter in German", () => {
+    // Code-unit order would put "Ärger" (U+00C4) after "Zulu" (U+005A); German
+    // collation orders it with its base letter "A", before "Zulu".
+    expect(compareText("de", "Ärger", "Zulu")).toBeLessThan(0);
+    expect(["Zulu", "Ärger"].sort((a, b) => compareText("de", a, b))).toEqual(["Ärger", "Zulu"]);
+  });
+
+  it("compareText orders by base letter before case, in the way the active locale expects", () => {
+    // Code-unit order puts every uppercase letter before every lowercase one
+    // (U+0042 "B" < U+0061 "a"), so "Banana" < "apple" by code unit. Collation
+    // orders by base letter first, so "apple" comes before "Banana" instead.
+    expect(compareText("en", "apple", "Banana")).toBeLessThan(0);
   });
 });

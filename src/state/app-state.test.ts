@@ -53,7 +53,17 @@ vi.mock("../services/scan.js", () => ({
 }));
 
 import { scanDiscovery } from "../services/scan.js";
-import { lastScanAt, report, runScan, scanState } from "./app-state.js";
+import {
+  expandedGroups,
+  lastScanAt,
+  report,
+  runScan,
+  scanState,
+  sessionSortDirection,
+  sessionSortField,
+  setSessionSort,
+  toggleGroup,
+} from "./app-state.js";
 
 describe("runScan", () => {
   beforeEach(() => {
@@ -93,5 +103,63 @@ describe("runScan", () => {
 
     expect(scanState.value).toBe("failed");
     expect(lastScanAt.value).toBeNull();
+  });
+});
+
+describe("expandedGroups / toggleGroup", () => {
+  beforeEach(() => {
+    expandedGroups.value = new Set();
+  });
+
+  it("toggleGroup adds a key and toggling again removes it", () => {
+    toggleGroup("a");
+    expect(expandedGroups.value.has("a")).toBe(true);
+    toggleGroup("a");
+    expect(expandedGroups.value.has("a")).toBe(false);
+  });
+
+  it("toggleGroup keeps other expanded keys", () => {
+    toggleGroup("a");
+    toggleGroup("b");
+    expect([...expandedGroups.value].sort()).toEqual(["a", "b"]);
+    toggleGroup("a");
+    expect([...expandedGroups.value]).toEqual(["b"]);
+  });
+});
+
+describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
+  beforeEach(() => {
+    sessionSortField.value = "cost";
+    sessionSortDirection.value = "desc";
+  });
+
+  it("setSessionSort flips the direction when the same field is chosen again", () => {
+    setSessionSort("cost");
+    expect(sessionSortField.value).toBe("cost");
+    expect(sessionSortDirection.value).toBe("asc");
+    setSessionSort("cost");
+    expect(sessionSortDirection.value).toBe("desc");
+  });
+
+  it("setSessionSort switches field and applies that field's default direction", () => {
+    setSessionSort("title");
+    expect(sessionSortField.value).toBe("title");
+    expect(sessionSortDirection.value).toBe("asc");
+
+    setSessionSort("duration");
+    expect(sessionSortField.value).toBe("duration");
+    expect(sessionSortDirection.value).toBe("desc");
+  });
+
+  it("expansion and sort state survive a rescan", async () => {
+    toggleGroup("a");
+    setSessionSort("title");
+    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+
+    await runScan();
+
+    expect(expandedGroups.value.has("a")).toBe(true);
+    expect(sessionSortField.value).toBe("title");
+    expect(sessionSortDirection.value).toBe("asc");
   });
 });

@@ -309,20 +309,69 @@ function comparePrimary(
   return sign * (fieldValue(field, aTotals) - fieldValue(field, bTotals));
 }
 
+export type SessionSortField = RowSortField | "title";
+export type TextComparator = (a: string, b: string) => number;
+
+export interface SessionSortOptions {
+  /**
+   * Defaults to code-unit order. NEVER call localeCompare in this module
+   * (LEARNINGS): the UI injects an Intl.Collator bound to the active locale.
+   */
+  readonly compareText?: TextComparator;
+}
+
+/**
+ * The manifest's lastActivityAt, falling back to the last result timestamp.
+ * Null only when the session has neither. Used for BOTH the displayed
+ * last-activity cell and the "lastActivity" sort field, so they can never
+ * disagree (S9 plan §2 Q5).
+ */
+export function sessionLastActivity(row: SessionRow): number | null {
+  return row.lastActivityAt ?? parseTimestamp(row.lastTimestamp);
+}
+
+function defaultCompareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * An empty title sorts LAST in both directions — exactly the `lastActivity`
+ * null rule above, and for the same reason: the null/empty verdict is NOT
+ * multiplied by the direction sign (LEARNINGS — the nulls-last-times-
+ * direction-sign trap). Returns `null` when neither title is empty, so the
+ * ordinary signed text comparison applies.
+ */
+function compareEmptyTitleLast(a: string, b: string): number | null {
+  const aEmpty = a === "";
+  const bEmpty = b === "";
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  return null;
+}
+
 export function compareSessionRows(
-  field: RowSortField,
+  field: SessionSortField,
   direction: SortDirection,
+  options?: SessionSortOptions,
 ): (a: SessionRow, b: SessionRow) => number {
   const sign = direction === "asc" ? 1 : -1;
+  const compareText = options?.compareText ?? defaultCompareText;
   return (a, b) => {
-    const primary = comparePrimary(
-      field,
-      sign,
-      a.lastActivityAt,
-      b.lastActivityAt,
-      a.totals,
-      b.totals,
-    );
+    let primary: number;
+    if (field === "title") {
+      const nulls = compareEmptyTitleLast(a.title, b.title);
+      primary = nulls !== null ? nulls : sign * compareText(a.title, b.title);
+    } else {
+      primary = comparePrimary(
+        field,
+        sign,
+        sessionLastActivity(a),
+        sessionLastActivity(b),
+        a.totals,
+        b.totals,
+      );
+    }
     if (primary !== 0) {
       return primary;
     }

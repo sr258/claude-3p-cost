@@ -58,7 +58,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S7 | ✅ Tauri filesystem implementation | US-1.1, US-1.2, US-1.6 | S6 |
 | **Phase 4 — The main view** ||||
 | S8 | ✅ Project overview + Playwright harness | US-2.1, NFR-9, NFR-2 | S5, S6, S2 |
-| S9 | Session drill-down | US-2.2 | S8 |
+| S9 | ✅ Session drill-down | US-2.2 | S8 |
 | S10 | Model breakdown, folder grouping, data gaps | US-2.3, US-2.4, US-1.5 (UI) | S9 |
 | **Phase 5 — Depth** ||||
 | S11 | Session detail: cost drivers | US-3.1 | S10 |
@@ -284,6 +284,8 @@ rather than letting it sprawl.
 text, or S2's language switch breaks every test later.
 
 ### S9 — Session drill-down
+
+**Status. Done 2026-09-18.** Plan: `docs/plans/S9-session-drilldown.md`.
 
 **Goal.** Expand a project, see its sessions.
 
