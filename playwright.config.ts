@@ -18,7 +18,15 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npm run build:e2e && vite preview --outDir dist-e2e --port 4173 --strictPort",
+    // `--host 127.0.0.1` matters: without it, `vite preview` binds to
+    // whichever address "localhost" resolves to first, which is the IPv6
+    // loopback on some hosts (reproduced both on macOS and the Ubuntu CI
+    // runner) — Playwright's own readiness check against the IPv4 `url`
+    // below then never connects and the step times out with no error
+    // printed, because the failure is a connection refusal, not a build
+    // failure.
+    command:
+      "npm run build:e2e && vite preview --outDir dist-e2e --port 4173 --strictPort --host 127.0.0.1",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
