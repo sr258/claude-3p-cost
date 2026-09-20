@@ -36,6 +36,7 @@ import { findGroup } from "./model/report.js";
 import {
   clearGroupScope,
   expandedKeysFor,
+  expandedSessionKeysFor,
   grouping,
   modelPanelOpen,
   report,
@@ -49,6 +50,7 @@ import {
   setSessionSort,
   toggleGroup,
   toggleGroupScope,
+  toggleSession,
 } from "./state/app-state.js";
 
 export function App() {
@@ -117,6 +119,8 @@ export function App() {
               grouping={currentGrouping}
               selectedKey={selectedKey}
               onSelect={(groupKey) => toggleGroupScope(currentGrouping, groupKey)}
+              expandedSessionKeys={expandedSessionKeysFor(currentGrouping)}
+              onToggleSession={(sessionId) => toggleSession(currentGrouping, sessionId)}
             />
             {modelPanelOpen.value && panelBreakdown && panelTotals && (
               <ModelPanel

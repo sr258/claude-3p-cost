@@ -9,6 +9,24 @@ Newest entry first.
 
 ---
 
+- **A NUL-byte scan needs a form that works from a non-interactive shell, not
+  just an interactive one.** `command grep -rlaP` assumes GNU-compatible grep;
+  from this environment's Bash tool the same command resolves to BSD grep,
+  which has no `-P` at all, and `ugrep` is not on that shell's `PATH`. `rg -l
+  --text --no-ignore --hidden --encoding none -e '\x00' <paths>` is the
+  reliable substitute — but only with `--encoding none`: ripgrep otherwise
+  detects a UTF-16 BOM, transcodes to UTF-8 before matching, and reports a
+  NUL-containing file clean, a silent false negative worse than a command that
+  errors loudly. Verify any NUL scan against a synthetic NUL file and a known
+  BOM'd fixture, not by trusting the exit code.
+- **`querySelectorAll("th")` on an outer table also matches every nested
+  table's headers once a detail row nests tables inside it**, inflating a
+  column count and making a `colSpan` assertion pass against the wrong number.
+  Scope with `:scope > thead > tr > th` to count only the table's own columns.
+- **A "shares sum to 1" assertion cannot by itself catch a spurious extra
+  category** if the wrong implementation also folds that category into the
+  denominator — the shares still sum to 1. Pair any normalised-share assertion
+  with an explicit pin on the total/denominator value.
 - **`no-irregular-whitespace` does not catch a raw U+00A0 inside a string
   literal.** The rule's `skipStrings` option defaults to `true`, so an
   `eslint.config.js` entry of `{ skipTemplates: true }` widens an already-open

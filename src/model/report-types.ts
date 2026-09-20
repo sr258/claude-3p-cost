@@ -2,6 +2,7 @@
  * The `Report` type S8–S18 read from. Types only, no logic, no runtime export.
  * See `docs/plans/S5-aggregation.md` §4.2.
  */
+import type { RequestRecord } from "./audit-types.js";
 import type { Problem } from "./problems.js";
 import type { FolderRef, ProjectRef, ScanGaps } from "./project-types.js";
 
@@ -76,6 +77,14 @@ export interface SessionRow {
   readonly lastActivityAt: number | null;
   readonly totals: CostTotals;
   readonly models: ModelBreakdown;
+  /**
+   * Every parsed `result` line of this session, timestamp ascending, nulls
+   * last (S11 plan §2 Q8). Frozen. Aborted requests are NOT here — they have
+   * no `result` line and are counted in `openRequests` instead (§2 Q2).
+   * Carries no path and no free text; NFR-6 containment is asserted in
+   * `report-privacy.test.ts`.
+   */
+  readonly requests: readonly RequestRecord[];
 }
 
 /** The UI maps a "none" kind to a translated label. The model never does. */

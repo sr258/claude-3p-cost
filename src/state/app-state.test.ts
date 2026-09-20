@@ -57,6 +57,8 @@ import {
   clearGroupScope,
   expandedGroups,
   expandedKeysFor,
+  expandedSessionKeysFor,
+  expandedSessions,
   grouping,
   lastScanAt,
   modelPanelOpen,
@@ -72,6 +74,7 @@ import {
   setSessionSort,
   toggleGroup,
   toggleGroupScope,
+  toggleSession,
 } from "./app-state.js";
 
 describe("runScan", () => {
@@ -250,5 +253,33 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
     expect(selectedGroupKey("folder")).toBe("f1");
     expect(sessionSortField.value).toBe("duration");
     expect(modelPanelOpen.value).toBe(false);
+  });
+});
+
+describe("expandedSessions / toggleSession / expandedSessionKeysFor", () => {
+  beforeEach(() => {
+    expandedSessions.value = new Set();
+  });
+
+  it("toggleSession expands and collapses one session", () => {
+    toggleSession("project", "sess1");
+    expect(expandedSessionKeysFor("project").has("sess1")).toBe(true);
+    toggleSession("project", "sess1");
+    expect(expandedSessionKeysFor("project").has("sess1")).toBe(false);
+  });
+
+  it("session expansion is tracked separately per grouping", () => {
+    toggleSession("project", "sess1");
+    expect(expandedSessionKeysFor("project").has("sess1")).toBe(true);
+    expect(expandedSessionKeysFor("folder").has("sess1")).toBe(false);
+  });
+
+  it("session expansion survives a rescan", async () => {
+    toggleSession("project", "sess1");
+    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+
+    await runScan();
+
+    expect(expandedSessionKeysFor("project").has("sess1")).toBe(true);
   });
 });

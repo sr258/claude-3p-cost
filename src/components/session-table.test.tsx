@@ -30,11 +30,14 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
     lastActivityAt: null,
     totals: EMPTY_TOTALS,
     models: { models: [], costMicroUsd: 0 },
+    requests: [],
     ...partial,
   };
 }
 
 const NOOP_SORT = () => {};
+const NOOP_TOGGLE_SESSION = () => {};
+const EMPTY_EXPANDED = new Set<string>();
 
 describe("SessionTable", () => {
   afterEach(() => {
@@ -51,6 +54,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -81,6 +86,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const rows = screen.getAllByTestId("session-row");
@@ -97,6 +104,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -114,6 +123,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -131,6 +142,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -148,6 +161,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="asc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     expect(screen.getByTestId("sort-cost").closest("th")?.getAttribute("aria-sort")).toBe(
@@ -170,19 +185,23 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={onSort}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     screen.getByTestId("sort-title").click();
     expect(onSort).toHaveBeenCalledWith("title");
   });
 
-  it("renders no click handler and no link on a session row", () => {
-    // S9 plan §3: session rows are NOT clickable; navigation to a session
-    // detail view is S11's. `hasAttribute("onclick")` would NOT catch a
-    // regression here — Preact attaches JSX event props with
-    // addEventListener and never writes an `onclick` content attribute, so
-    // that assertion is false whether or not a handler exists. Spy on
-    // addEventListener instead and record which elements got listeners.
+  it("renders no click handler and no link directly on a session row, only the disclosure button", () => {
+    // S9 plan §3: session rows themselves are NOT clickable. S11 adds a
+    // disclosure BUTTON inside the row (the session detail expansion), which
+    // is deliberately the one interactive element there.
+    // `hasAttribute("onclick")` would NOT catch a regression here — Preact
+    // attaches JSX event props with addEventListener and never writes an
+    // `onclick` content attribute, so that assertion is false whether or not
+    // a handler exists. Spy on addEventListener instead and record which
+    // elements got listeners.
     const listeners: { readonly target: EventTarget; readonly type: string }[] = [];
     const original = Element.prototype.addEventListener;
     const spy = vi.spyOn(Element.prototype, "addEventListener").mockImplementation(function (
@@ -204,16 +223,26 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     spy.mockRestore();
 
     const row = screen.getAllByTestId("session-row")[0]!;
     expect(row.querySelector("a")).toBeNull();
-    expect(row.querySelector("button")).toBeNull();
+    // Exactly one button — the disclosure — not a row full of clickable cells.
+    expect(row.querySelectorAll("button")).toHaveLength(1);
+    expect(row.querySelector("button")).toBe(within(row).getByTestId("session-disclosure"));
+    // The <tr> itself never gets a listener; only the button inside it does.
     expect(listeners.filter((entry) => entry.target === row).map((entry) => entry.type)).toEqual(
       [],
     );
+    expect(
+      listeners
+        .filter((entry) => entry.target === within(row).getByTestId("session-disclosure"))
+        .map((e) => e.type),
+    ).toEqual(["click"]);
     // The sort buttons in the header DO get listeners — proof the spy sees
     // what Preact attaches, so the empty list above is a real negative.
     expect(
@@ -235,6 +264,8 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const deIds = screen.getAllByTestId("session-row")[0]!.querySelectorAll("[data-testid]").length;
@@ -249,10 +280,112 @@ describe("SessionTable", () => {
         sortField="cost"
         sortDirection="desc"
         onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
       />,
     );
     const enIds = screen.getAllByTestId("session-row")[0]!.querySelectorAll("[data-testid]").length;
 
     expect(enIds).toBe(deIds);
+  });
+
+  it("each session row carries a disclosure button with aria-expanded", () => {
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+      />,
+    );
+    const row = screen.getAllByTestId("session-row")[0]!;
+    const disclosure = within(row).getByTestId("session-disclosure");
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("an expanded session renders a detail row spanning every column", () => {
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={new Set(["s1"])}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+      />,
+    );
+    expect(screen.getByTestId("session-row").getAttribute("data-session-id")).toBe("s1");
+    const detailRow = screen.getByTestId("session-detail-row");
+    const cell = detailRow.querySelector("td")!;
+    // Scoped to the outer table's own header row -- nested tables inside the
+    // detail box (category/model/request tables) have their own <thead>s and
+    // would otherwise inflate this count.
+    const totalColumns = screen
+      .getByTestId("session-table")
+      .querySelectorAll(":scope > thead > tr > th").length;
+    expect(cell.getAttribute("colspan")).toBe(String(totalColumns));
+    expect(within(detailRow).getByTestId("session-detail")).toBeTruthy();
+  });
+
+  it("a collapsed session renders no detail row", () => {
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+      />,
+    );
+    expect(screen.queryByTestId("session-detail-row")).toBeNull();
+  });
+
+  it("the disclosure button is labelled from the catalogue with the session id", () => {
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+      />,
+    );
+    const disclosure = within(screen.getByTestId("session-row")).getByTestId("session-disclosure");
+    expect(disclosure.getAttribute("aria-label")).toBe(t("detail.expandSession", { id: "s1" }));
+  });
+
+  it("calls onToggleSession with the session id when the disclosure button is clicked", () => {
+    const onToggleSession = vi.fn();
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={onToggleSession}
+      />,
+    );
+    within(screen.getByTestId("session-row")).getByTestId("session-disclosure").click();
+    expect(onToggleSession).toHaveBeenCalledWith("s1");
   });
 });

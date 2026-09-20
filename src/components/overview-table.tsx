@@ -31,6 +31,9 @@ export interface OverviewTableProps {
   readonly sortDirection: SortDirection;
   readonly onToggle: (groupKey: string) => void;
   readonly onSort: (field: SessionSortField) => void;
+  /** US-3.1's session detail disclosure, threaded down to `SessionTable` (S11 plan §4.7). */
+  readonly expandedSessionKeys: ReadonlySet<string>;
+  readonly onToggleSession: (sessionId: string) => void;
   /** Drives the first column header (S10 plan §2 Q10). */
   readonly grouping: Grouping;
   readonly selectedKey: string | null;
@@ -50,6 +53,8 @@ export function OverviewTable(props: OverviewTableProps) {
     grouping,
     selectedKey,
     onSelect,
+    expandedSessionKeys,
+    onToggleSession,
   } = props;
 
   return (
@@ -145,6 +150,8 @@ export function OverviewTable(props: OverviewTableProps) {
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={onSort}
+                        expandedSessionKeys={expandedSessionKeys}
+                        onToggleSession={onToggleSession}
                       />
                     </div>
                   </td>

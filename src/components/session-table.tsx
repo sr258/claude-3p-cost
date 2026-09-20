@@ -7,12 +7,15 @@
  * Session rows are NOT clickable and carry no navigation (S9 plan §3) — that
  * is S11's job.
  */
+import { Fragment } from "preact";
 import { t, tCurrency, tDateTime, tDuration, tNumber } from "../i18n/index.js";
+import { SessionDetail } from "./session-detail.js";
 import type { SessionRow } from "../model/report-types.js";
 import { sessionLastActivity, type SessionSortField, type SortDirection } from "../model/report.js";
 
 /** The eight column headers, none of which take a placeholder. */
 type ColumnLabelKey =
+  | "session.columnDisclosure"
   | "session.columnId"
   | "session.columnTitle"
   | "session.columnRequests"
@@ -32,15 +35,26 @@ export interface SessionTableProps {
   readonly sortField: SessionSortField;
   readonly sortDirection: SortDirection;
   readonly onSort: (field: SessionSortField) => void;
+  /** US-3.1's session detail disclosure (S11 plan §4.6). */
+  readonly expandedSessionKeys: ReadonlySet<string>;
+  readonly onToggleSession: (sessionId: string) => void;
 }
 
 interface ColumnDef {
   readonly field: SessionSortField | null;
   readonly testId: string;
   readonly labelKey: ColumnLabelKey;
+  /** The disclosure column's header text is visually hidden, not empty. */
+  readonly hiddenLabel?: boolean;
 }
 
 const COLUMNS: readonly ColumnDef[] = [
+  {
+    field: null,
+    testId: "cell-disclosure",
+    labelKey: "session.columnDisclosure",
+    hiddenLabel: true,
+  },
   { field: null, testId: "cell-session-id", labelKey: "session.columnId" },
   { field: "title", testId: "cell-title", labelKey: "session.columnTitle" },
   { field: "requests", testId: "cell-requests", labelKey: "session.columnRequests" },
@@ -52,7 +66,15 @@ const COLUMNS: readonly ColumnDef[] = [
 ];
 
 export function SessionTable(props: SessionTableProps) {
-  const { groupLabel, sessions, sortField, sortDirection, onSort } = props;
+  const {
+    groupLabel,
+    sessions,
+    sortField,
+    sortDirection,
+    onSort,
+    expandedSessionKeys,
+    onToggleSession,
+  } = props;
 
   return (
     <table class="session-table" data-testid="session-table" data-group-key={props.groupKey}>
@@ -65,7 +87,11 @@ export function SessionTable(props: SessionTableProps) {
             if (column.field === null) {
               return (
                 <th scope="col" key={column.testId}>
-                  {t(column.labelKey)}
+                  {column.hiddenLabel ? (
+                    <span class="visually-hidden">{t(column.labelKey)}</span>
+                  ) : (
+                    t(column.labelKey)
+                  )}
                 </th>
               );
             }
@@ -93,35 +119,60 @@ export function SessionTable(props: SessionTableProps) {
       <tbody>
         {sessions.map((session) => {
           const lastActivity = sessionLastActivity(session);
+          const isExpanded = expandedSessionKeys.has(session.sessionId);
+          const detailId = `session-detail-${session.sessionId}`;
+          const toggleLabel = isExpanded
+            ? t("detail.collapseSession", { id: session.sessionId })
+            : t("detail.expandSession", { id: session.sessionId });
           return (
-            <tr
-              key={session.sessionId}
-              data-testid="session-row"
-              data-session-id={session.sessionId}
-              data-archived={session.isArchived ? "true" : undefined}
-            >
-              <td data-testid="cell-session-id" class="session-table__id">
-                {session.sessionId}
-              </td>
-              <td data-testid="cell-title">
-                {session.title === "" ? t("session.untitled") : session.title}
-                {session.isArchived && (
-                  <span data-testid="archived-badge">{t("session.archived")}</span>
-                )}
-              </td>
-              <td data-testid="cell-requests">{tNumber(session.totals.requests)}</td>
-              <td data-testid="cell-cost">{tCurrency(session.totals.costMicroUsd / 1e6)}</td>
-              <td data-testid="cell-output-tokens">
-                {tNumber(session.totals.tokens.outputTokens)}
-              </td>
-              <td data-testid="cell-cache-read">
-                {tNumber(session.totals.tokens.cacheReadInputTokens)}
-              </td>
-              <td data-testid="cell-duration">{tDuration(session.totals.durationMs)}</td>
-              <td data-testid="cell-last-activity">
-                {lastActivity === null ? t("session.noActivity") : tDateTime(lastActivity)}
-              </td>
-            </tr>
+            <Fragment key={session.sessionId}>
+              <tr
+                data-testid="session-row"
+                data-session-id={session.sessionId}
+                data-archived={session.isArchived ? "true" : undefined}
+              >
+                <td data-testid="cell-disclosure">
+                  <button
+                    type="button"
+                    data-testid="session-disclosure"
+                    aria-expanded={isExpanded}
+                    aria-controls={detailId}
+                    aria-label={toggleLabel}
+                    onClick={() => onToggleSession(session.sessionId)}
+                  >
+                    {isExpanded ? "▼" : "▶"}
+                  </button>
+                </td>
+                <td data-testid="cell-session-id" class="session-table__id">
+                  {session.sessionId}
+                </td>
+                <td data-testid="cell-title">
+                  {session.title === "" ? t("session.untitled") : session.title}
+                  {session.isArchived && (
+                    <span data-testid="archived-badge">{t("session.archived")}</span>
+                  )}
+                </td>
+                <td data-testid="cell-requests">{tNumber(session.totals.requests)}</td>
+                <td data-testid="cell-cost">{tCurrency(session.totals.costMicroUsd / 1e6)}</td>
+                <td data-testid="cell-output-tokens">
+                  {tNumber(session.totals.tokens.outputTokens)}
+                </td>
+                <td data-testid="cell-cache-read">
+                  {tNumber(session.totals.tokens.cacheReadInputTokens)}
+                </td>
+                <td data-testid="cell-duration">{tDuration(session.totals.durationMs)}</td>
+                <td data-testid="cell-last-activity">
+                  {lastActivity === null ? t("session.noActivity") : tDateTime(lastActivity)}
+                </td>
+              </tr>
+              {isExpanded && (
+                <tr data-testid="session-detail-row">
+                  <td colSpan={9} id={detailId}>
+                    <SessionDetail session={session} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           );
         })}
       </tbody>

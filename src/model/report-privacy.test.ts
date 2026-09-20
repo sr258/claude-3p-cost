@@ -81,4 +81,41 @@ describe("report privacy", () => {
       expect(JSON.stringify(session.title)).not.toContain(fullPath);
     }
   });
+
+  it("SessionRow.requests carries no path-like and no free-text field", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_ORDINARY_JSON),
+      basename(MANIFEST_ORDINARY_JSON),
+      problems,
+    )!;
+    const index = buildManifestIndex([parsed], problems);
+    const accumulator = createAuditAccumulator(parsed.meta.sessionId);
+    accumulator.pushLine(
+      JSON.stringify({
+        type: "result",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        total_cost_usd: 0.5,
+        duration_ms: 1000,
+        duration_api_ms: 900,
+        num_turns: 1,
+        is_error: false,
+        session_id: "11111111-2222-3333-4444-555555555555",
+      }),
+    );
+    const audit = accumulator.finish();
+    const resolved = resolveSession(audit, index, new Map(), problems);
+
+    const report = buildReport([resolved], problems.problems);
+    expect(report.sessions[0]!.requests.length).toBeGreaterThan(0);
+    for (const request of report.sessions[0]!.requests) {
+      const keys = Object.keys(request);
+      expect(keys).not.toContain("cwd");
+      expect(keys).not.toContain("path");
+      expect(keys).not.toContain("prompt");
+      expect(keys).not.toContain("systemPrompt");
+      expect(keys).not.toContain("initialMessage");
+      expect(JSON.stringify(request)).not.toMatch(/[/\\]/);
+    }
+  });
 });

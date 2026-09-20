@@ -13,6 +13,8 @@ export const MALFORMED_JSONL = `${DIR}malformed.jsonl`;
 export const CRLF_NO_TRAILING_NEWLINE_JSONL = `${DIR}crlf-no-trailing-newline.jsonl`;
 export const PARTIAL_FIELDS_JSONL = `${DIR}partial-fields.jsonl`;
 export const EMPTY_JSONL = `${DIR}empty.jsonl`;
+/** S11 plan §5: token categories, thinking, cacheWriteOther, server tools, error, no timestamp, aborted. */
+export const COST_DRIVERS_JSONL = `${DIR}cost-drivers.jsonl`;
 
 export const ALL_FIXTURES = [
   BASIC_JSONL,
@@ -22,4 +24,5 @@ export const ALL_FIXTURES = [
   CRLF_NO_TRAILING_NEWLINE_JSONL,
   PARTIAL_FIELDS_JSONL,
   EMPTY_JSONL,
+  COST_DRIVERS_JSONL,
 ];

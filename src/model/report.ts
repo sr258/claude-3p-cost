@@ -3,6 +3,7 @@
  * Pure, O(requests), and frozen all the way down. No rounding anywhere in
  * this file except `costShare`'s ratio — see plan §2 Q9 and §6.
  */
+import type { RequestRecord } from "./audit-types.js";
 import type { Problem } from "./problems.js";
 import { folderKey, folderRefOf } from "./folder-grouping.js";
 import { projectKey, summarizeGaps } from "./project-assignment.js";
@@ -65,6 +66,19 @@ function sortedBuckets(map: Map<string, TimeBucketAccumulator>): readonly TimeBu
   );
 }
 
+/**
+ * ISO strings by code unit, never `localeCompare` (LEARNINGS: that is the
+ * model layer's back door to i18n). Nulls last, in the only direction there
+ * is — the nulls-last verdict is not multiplied by any direction sign
+ * because there is no direction sign here (S11 plan §2 Q8, §4.2).
+ */
+function compareRequestsByTimestamp(a: RequestRecord, b: RequestRecord): number {
+  if (a.timestamp === null && b.timestamp === null) return 0;
+  if (a.timestamp === null) return 1;
+  if (b.timestamp === null) return -1;
+  return a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0;
+}
+
 function buildSessionRow(
   session: ResolvedSession,
   zone: ZoneOffsetResolver,
@@ -123,6 +137,7 @@ function buildSessionRow(
     lastActivityAt: session.meta?.lastActivityAt ?? null,
     totals: totalsAcc.value,
     models: modelAcc.value,
+    requests: Object.freeze([...session.audit.requests].sort(compareRequestsByTimestamp)),
   });
 }
 

@@ -36,6 +36,7 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
     lastActivityAt: null,
     totals: EMPTY_TOTALS,
     models: EMPTY_MODEL_BREAKDOWN,
+    requests: [],
     ...partial,
   };
 }
@@ -43,6 +44,8 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
 const NOOP_TOGGLE = () => {};
 const NOOP_SORT = () => {};
 const NOOP_SELECT = () => {};
+const NOOP_TOGGLE_SESSION = () => {};
+const EMPTY_EXPANDED = new Set<string>();
 
 function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTableProps {
   return {
@@ -56,6 +59,8 @@ function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTabl
     grouping: "project",
     selectedKey: null,
     onSelect: NOOP_SELECT,
+    expandedSessionKeys: EMPTY_EXPANDED,
+    onToggleSession: NOOP_TOGGLE_SESSION,
     ...overrides,
   };
 }

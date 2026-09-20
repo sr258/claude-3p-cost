@@ -61,7 +61,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S9 | ✅ Session drill-down | US-2.2 | S8 |
 | S10 | Model breakdown, folder grouping, data gaps | US-2.3, US-2.4, US-1.5 (UI) | S9 |
 | **Phase 5 — Depth** ||||
-| S11 | Session detail: cost drivers | US-3.1 | S10 |
+| S11 | ✅ Session detail: cost drivers | US-3.1 | S10 |
 | S12 | Tool usage per session | US-3.2 | S11 |
 | S13 | Date range filter | US-5.1 | S10 |
 | S14 | Trend over time | US-5.2 | S13 |
@@ -319,6 +319,8 @@ are present with the reference numbers.
 ## Phase 5 — Depth
 
 ### S11 — Session detail: cost drivers
+
+**Status. Done 2026-09-20.** Plan: `docs/plans/S11-session-detail-cost-drivers.md`.
 
 **Goal.** Where the money went inside one session.
 

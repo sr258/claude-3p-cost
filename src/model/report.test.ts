@@ -505,4 +505,67 @@ describe("buildReport", () => {
     expect(asc.map((s) => s.sessionId)).toEqual(["s-dated", "s-none"]);
     expect(desc.map((s) => s.sessionId)).toEqual(["s-dated", "s-none"]);
   });
+
+  describe("SessionRow.requests (S11 plan §4.2, §7)", () => {
+    it("keeps every parsed request", () => {
+      const requests = [
+        makeRequest({ timestamp: "2026-01-01T00:00:00.000Z", costMicroUsd: 1 }),
+        makeRequest({ timestamp: "2026-01-02T00:00:00.000Z", costMicroUsd: 2 }),
+        makeRequest({ timestamp: "2026-01-03T00:00:00.000Z", costMicroUsd: 3 }),
+      ];
+      const report = buildReport([makeSession("s1", requests)], []);
+      expect(report.sessions[0]!.requests).toHaveLength(3);
+    });
+
+    it("is ordered by timestamp ascending", () => {
+      const requests = [
+        makeRequest({ timestamp: "2026-01-03T00:00:00.000Z", costMicroUsd: 3 }),
+        makeRequest({ timestamp: "2026-01-01T00:00:00.000Z", costMicroUsd: 1 }),
+        makeRequest({ timestamp: "2026-01-02T00:00:00.000Z", costMicroUsd: 2 }),
+      ];
+      const report = buildReport([makeSession("s1", requests)], []);
+      expect(report.sessions[0]!.requests.map((r) => r.costMicroUsd)).toEqual([1, 2, 3]);
+    });
+
+    it("puts a request with no timestamp last", () => {
+      const requests = [
+        makeRequest({ timestamp: null, costMicroUsd: 9 }),
+        makeRequest({ timestamp: "2026-01-01T00:00:00.000Z", costMicroUsd: 1 }),
+      ];
+      const report = buildReport([makeSession("s1", requests)], []);
+      expect(report.sessions[0]!.requests.map((r) => r.costMicroUsd)).toEqual([1, 9]);
+    });
+
+    it("is frozen", () => {
+      const report = buildReport([makeSession("s1", [makeRequest()])], []);
+      expect(Object.isFrozen(report.sessions[0]!.requests)).toBe(true);
+    });
+
+    it("an aborted request yields no request row and is counted in openRequests", () => {
+      const session = makeSession("s1", [makeRequest()], {});
+      // Simulate an aborted request: openRequests > 0, but no extra RequestRecord.
+      const audit = { ...session.audit, openRequests: 1 };
+      const report = buildReport([{ ...session, audit }], []);
+      expect(report.sessions[0]!.requests).toHaveLength(1);
+      expect(report.sessions[0]!.openRequests).toBe(1);
+    });
+
+    it("keeping the request list changes no total, bucket or group", () => {
+      const sessions = [
+        makeSession(
+          "s1",
+          [makeRequest({ costMicroUsd: 100_000, timestamp: "2026-01-01T00:00:00.000Z" })],
+          { project: { kind: "named", spaceId: "p1", name: "One" } },
+        ),
+      ];
+      const report = buildReport(sessions, []);
+      // Same totals, group and day-bucket figures as before `requests` was
+      // added to `SessionRow` -- restoring the list changes no aggregate.
+      expect(report.totals.costMicroUsd).toBe(100_000);
+      expect(report.projectGroups[0]!.totals.costMicroUsd).toBe(100_000);
+      expect(report.byDay).toEqual([
+        expect.objectContaining({ key: "2026-01-01", costMicroUsd: 100_000, requests: 1 }),
+      ]);
+    });
+  });
 });

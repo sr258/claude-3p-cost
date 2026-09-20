@@ -216,6 +216,41 @@ export function clearGroupScope(g: Grouping): void {
   selectedGroups.value = { ...selectedGroups.value, [g]: null };
 }
 
+/**
+ * US-3.1's session detail disclosure (S11 plan §4.5). Mirrors
+ * `expandedGroups` exactly, including the per-grouping prefix and the
+ * "never pruned on rescan" property: `runScan()` never touches this signal,
+ * so expansion survives a rescan. Session ids are hex directory names, so
+ * unlike `projectKey({kind:"none"})` / `NO_FOLDER_KEY` there is no shared
+ * sentinel here — but the prefix is kept anyway so that expanding a session
+ * under the project grouping does not silently expand it under the folder
+ * grouping too.
+ */
+export const expandedSessions = signal<ReadonlySet<string>>(new Set());
+
+export function toggleSession(g: Grouping, sessionId: string): void {
+  const key = prefixedKey(g, sessionId);
+  const next = new Set(expandedSessions.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  expandedSessions.value = next;
+}
+
+/** The raw (unprefixed) session ids expanded under this grouping. */
+export function expandedSessionKeysFor(g: Grouping): ReadonlySet<string> {
+  const prefix = `${g}:`;
+  const result = new Set<string>();
+  for (const key of expandedSessions.value) {
+    if (key.startsWith(prefix)) {
+      result.add(key.slice(prefix.length));
+    }
+  }
+  return result;
+}
+
 /** US-2.3's side panel visibility (plan §2 Q7). Default open. */
 export const modelPanelOpen = signal<boolean>(true);
 

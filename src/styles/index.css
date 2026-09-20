@@ -403,6 +403,76 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* ─── Session detail / cost drivers (S11, US-3.1) ────────────────────────── */
+
+.session-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--c3p-space-m);
+  padding: var(--c3p-space-s) var(--c3p-space-m);
+  background: var(--c3p-surface);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+}
+
+.session-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--c3p-space-s);
+}
+
+.category-table,
+.request-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--c3p-font-xs);
+}
+
+.category-table th,
+.category-table td,
+.request-table th,
+.request-table td {
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  text-align: left;
+}
+
+.category-table th:not(:first-child),
+.category-table td:not(:first-child),
+.request-table th:not(:first-child),
+.request-table td:not(:first-child) {
+  text-align: right;
+}
+
+.category-table tbody tr[data-testid="thinking-row"] {
+  color: var(--c3p-text-secondary);
+  font-size: var(--c3p-font-xxs);
+}
+
+.session-detail__indented {
+  padding-left: var(--c3p-space-l);
+}
+
+.request-table tr[data-error="true"] {
+  background: var(--c3p-contrast-5);
+}
+
+.session-detail [data-testid="request-error-badge"] {
+  margin-left: var(--c3p-space-xs);
+  padding: 0 var(--c3p-space-xs);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  font-size: var(--c3p-font-xxs);
+  text-transform: uppercase;
+}
+
+.session-detail__server-tools {
+  display: flex;
+  gap: var(--c3p-space-s);
+  font-size: var(--c3p-font-xs);
+  color: var(--c3p-text-secondary);
+}
+
 /* ─── Gap indicators (S10, US-1.5) ───────────────────────────────────────── */
 
 .gap-indicators {

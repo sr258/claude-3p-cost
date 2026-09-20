@@ -59,7 +59,29 @@ function resultLine(fields: {
   readonly numTurns: number;
   readonly sessionId: string;
   readonly modelUsage?: Record<string, unknown>;
+  /** S11 plan §6: optional so every pre-S11 tree above is untouched. */
+  readonly usage?: Record<string, unknown>;
+  readonly serverToolUse?: {
+    readonly webSearchRequests?: number;
+    readonly webFetchRequests?: number;
+  };
+  readonly subagentStats?: Record<string, unknown>;
+  readonly isError?: boolean;
 }): string {
+  const usage =
+    fields.usage || fields.serverToolUse
+      ? {
+          ...fields.usage,
+          ...(fields.serverToolUse
+            ? {
+                server_tool_use: {
+                  web_search_requests: fields.serverToolUse.webSearchRequests ?? 0,
+                  web_fetch_requests: fields.serverToolUse.webFetchRequests ?? 0,
+                },
+              }
+            : {}),
+        }
+      : undefined;
   return JSON.stringify({
     type: "result",
     timestamp: fields.timestamp,
@@ -67,9 +89,11 @@ function resultLine(fields: {
     duration_ms: fields.durationMs,
     duration_api_ms: fields.durationApiMs,
     num_turns: fields.numTurns,
-    is_error: false,
+    is_error: fields.isError ?? false,
     session_id: fields.sessionId,
     ...(fields.modelUsage ? { modelUsage: fields.modelUsage } : {}),
+    ...(usage ? { usage } : {}),
+    ...(fields.subagentStats ? { subagent_stats: fields.subagentStats } : {}),
   });
 }
 
@@ -620,6 +644,116 @@ export const groupingTree: FakeTree = Object.freeze({
     [`${GROUPING_PROFILE}/gquartz1/audit.jsonl`]: GQUARTZ_A_AUDIT,
     [`${GROUPING_PROFILE}/gquartz2/audit.jsonl`]: GQUARTZ_B_AUDIT,
     [`${GROUPING_PROFILE}/gnomanifest/audit.jsonl`]: GNOMANIFEST_AUDIT,
+  }),
+  hostEnvironment: HOST_ENVIRONMENT,
+});
+
+// ─── costDriversTree (S11, US-3.1) ─────────────────────────────────────────
+// Every value invented (plan §6); nothing copied, quoted or paraphrased from
+// the reference tree. `overviewTree`, `drilldownTree` and `groupingTree`
+// above are untouched. One project with one session whose single project
+// carries: all six token categories plus thinking, non-zero web search AND
+// web fetch, a non-zero subagent count, one error request, and one aborted
+// lifecycle (a "started" with no matching "completed"/result).
+
+const COST_DRIVERS_ROOT = "C:/Users/e2e/AppData/Local/Claude-3p/local-agent-mode-sessions";
+const COST_DRIVERS_PROFILE = `${COST_DRIVERS_ROOT}/acct-1/profile-1`;
+
+export const COST_DRIVERS_SPACE_ID = "space-costdrivers";
+export const COST_DRIVERS_SESSION_ID = "driver01";
+/** No server-tool use, no subagents at all -- the "no summary" spec (plan §7). */
+export const COST_DRIVERS_QUIET_SESSION_ID = "driver02";
+
+const COST_DRIVERS_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-opus-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-05-01T09:00:00.000Z",
+    totalCostUsd: 12.5,
+    durationMs: 9_000,
+    durationApiMs: 8_500,
+    numTurns: 3,
+    sessionId: "driver01-full-uuid",
+    usage: {
+      input_tokens: 4000,
+      output_tokens: 9000,
+      output_tokens_details: { thinking_tokens: 2200 },
+      cache_creation_input_tokens: 6000,
+      cache_read_input_tokens: 15000,
+      cache_creation: { ephemeral_1h_input_tokens: 4000, ephemeral_5m_input_tokens: 1000 },
+    },
+    serverToolUse: { webSearchRequests: 2, webFetchRequests: 1 },
+    subagentStats: {
+      requested: 2,
+      spawned: 2,
+      spawned_by_subagents: 0,
+      started_in_background: 0,
+      completed: 2,
+      failed: 0,
+      killed: 0,
+      refused: 0,
+      max_depth: 1,
+    },
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-05-01T09:10:00.000Z",
+    totalCostUsd: 3.0,
+    durationMs: 2_000,
+    durationApiMs: 1_800,
+    numTurns: 1,
+    sessionId: "driver01b-full-uuid",
+    isError: true,
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  // One unmatched "started": no matching "completed"/result -> one open request.
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  "",
+].join("\n");
+
+// No usage, no server_tool_use, no subagent_stats at all: the "no summary" case.
+const COST_DRIVERS_QUIET_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-05-02T09:00:00.000Z",
+    totalCostUsd: 1.0,
+    durationMs: 1_000,
+    durationApiMs: 900,
+    numTurns: 1,
+    sessionId: "driver02-full-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+export const costDriversTree: FakeTree = Object.freeze({
+  directories: Object.freeze([]),
+  files: Object.freeze({
+    [`${COST_DRIVERS_PROFILE}/spaces.json`]: JSON.stringify([
+      { id: COST_DRIVERS_SPACE_ID, name: "Cost Drivers" },
+    ]),
+    [`${COST_DRIVERS_PROFILE}/local_${COST_DRIVERS_SESSION_ID}-manifest-uuid.json`]: JSON.stringify(
+      {
+        title: "Cost driver session",
+        spaceId: COST_DRIVERS_SPACE_ID,
+        model: "claude-opus-5",
+      },
+    ),
+    [`${COST_DRIVERS_PROFILE}/local_${COST_DRIVERS_QUIET_SESSION_ID}-manifest-uuid.json`]:
+      JSON.stringify({
+        title: "Quiet session",
+        spaceId: COST_DRIVERS_SPACE_ID,
+        model: "claude-sonnet-5",
+      }),
+    [`${COST_DRIVERS_PROFILE}/${COST_DRIVERS_SESSION_ID}/audit.jsonl`]: COST_DRIVERS_AUDIT,
+    [`${COST_DRIVERS_PROFILE}/${COST_DRIVERS_QUIET_SESSION_ID}/audit.jsonl`]:
+      COST_DRIVERS_QUIET_AUDIT,
   }),
   hostEnvironment: HOST_ENVIRONMENT,
 });
