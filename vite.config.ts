@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => ({
     alias:
       mode === "e2e"
         ? [
+            // `@tauri-apps/plugin-dialog` is aliased too (S7 added it after
+            // this comment was written) so `folder-picker.ts`'s static
+            // import resolves; see fake-dialog-plugin.ts.
             {
               find: "@tauri-apps/plugin-fs",
               replacement: new URL("./e2e/support/fake-tauri-plugin.ts", import.meta.url).pathname,
@@ -26,6 +29,10 @@ export default defineConfig(({ mode }) => ({
             {
               find: "@tauri-apps/api/core",
               replacement: new URL("./e2e/support/fake-tauri-plugin.ts", import.meta.url).pathname,
+            },
+            {
+              find: "@tauri-apps/plugin-dialog",
+              replacement: new URL("./e2e/support/fake-dialog-plugin.ts", import.meta.url).pathname,
             },
           ]
         : [],
