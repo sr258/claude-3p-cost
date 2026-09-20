@@ -15,6 +15,8 @@ export const PARTIAL_FIELDS_JSONL = `${DIR}partial-fields.jsonl`;
 export const EMPTY_JSONL = `${DIR}empty.jsonl`;
 /** S11 plan §5: token categories, thinking, cacheWriteOther, server tools, error, no timestamp, aborted. */
 export const COST_DRIVERS_JSONL = `${DIR}cost-drivers.jsonl`;
+/** S12 plan §5: tool_use dedup, parallel calls, cross-request sums, tie-break, malformed blocks. */
+export const TOOL_USAGE_JSONL = `${DIR}tool-usage.jsonl`;
 
 export const ALL_FIXTURES = [
   BASIC_JSONL,
@@ -25,4 +27,5 @@ export const ALL_FIXTURES = [
   PARTIAL_FIELDS_JSONL,
   EMPTY_JSONL,
   COST_DRIVERS_JSONL,
+  TOOL_USAGE_JSONL,
 ];

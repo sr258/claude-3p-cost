@@ -48,6 +48,10 @@ export const en = {
   "detail.thinkingOfOutput": "{share} of output",
   "detail.tokenShareNote":
     "Shares are token shares, not cost shares: no price table is configured.",
+  "detail.tools.empty": "No tool calls recorded",
+  "detail.tools.heading": "Tool usage",
+  "detail.tools.note":
+    "Call counts, not a cost attribution: billing is per API request, and a tool result only enters the bill indirectly by enlarging the context of subsequent requests.",
   "detail.webFetch.one": "{count} web fetch",
   "detail.webFetch.other": "{count} web fetches",
   "detail.webSearch.one": "{count} web search",

@@ -5,6 +5,7 @@
 import type { RequestRecord } from "./audit-types.js";
 import type { Problem } from "./problems.js";
 import type { FolderRef, ProjectRef, ScanGaps } from "./project-types.js";
+import type { ToolUseCount } from "./tool-usage.js";
 
 export interface TokenTotals {
   readonly inputTokens: number;
@@ -85,6 +86,12 @@ export interface SessionRow {
    * `report-privacy.test.ts`.
    */
   readonly requests: readonly RequestRecord[];
+  /**
+   * Tool calls by name, already ranked and frozen by the parser (S12 plan
+   * §2 Q9). The report does NOT re-sort: the ordering is decided once, in
+   * `rankToolUses`. Carries no id, no path and no free text (NFR-6).
+   */
+  readonly toolUses: readonly ToolUseCount[];
 }
 
 /** The UI maps a "none" kind to a translated label. The model never does. */

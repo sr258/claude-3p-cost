@@ -51,6 +51,7 @@ function makeSessionRow(overrides: Partial<SessionRow> = {}): SessionRow {
     totals: EMPTY_TOTALS,
     models: EMPTY_MODEL_BREAKDOWN,
     requests: [],
+    toolUses: [],
     ...overrides,
   };
 }
@@ -271,5 +272,68 @@ describe("SessionDetail", () => {
     expect(within(breakdown).getByTestId("session-model-row").textContent).toContain(
       "claude-opus-5",
     );
+  });
+
+  describe("tool usage (S12, US-3.2)", () => {
+    it("renders one chip per tool, in ranked order", () => {
+      const session = makeSessionRow({
+        toolUses: [
+          { name: "Bash", calls: 5 },
+          { name: "Read", calls: 2 },
+          { name: "Edit", calls: 1 },
+        ],
+      });
+      render(<SessionDetail session={session} />);
+      const chips = screen.getAllByTestId("tool-chip");
+      // DOM order IS the rank (S12 plan §2 Q4) -- never re-sorted here.
+      expect(chips.map((c) => c.getAttribute("data-tool"))).toEqual(["Bash", "Read", "Edit"]);
+    });
+
+    it("renders the chips as list items inside a labelled list", () => {
+      const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
+      render(<SessionDetail session={session} />);
+      const list = screen.getByTestId("tool-chip-list");
+      expect(list.tagName).toBe("UL");
+      expect(list.hasAttribute("aria-labelledby")).toBe(true);
+      const chip = screen.getByTestId("tool-chip");
+      expect(chip.tagName).toBe("LI");
+    });
+
+    it("states that these are call counts and not a cost attribution", () => {
+      const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
+      render(<SessionDetail session={session} />);
+      expect(screen.getByTestId("tool-usage-note").textContent).toBe(t("detail.tools.note"));
+    });
+
+    it("shows no share or percentage anywhere in the tool section", () => {
+      const session = makeSessionRow({
+        toolUses: [
+          { name: "Bash", calls: 5 },
+          { name: "Read", calls: 5 },
+        ],
+      });
+      render(<SessionDetail session={session} />);
+      const section = screen.getByTestId("tool-usage");
+      expect(section.textContent).not.toContain("%");
+    });
+
+    it("renders an MCP tool name verbatim, with no truncation or ellipsis", () => {
+      // Tool names are data, not UI text: asserting the literal string here is
+      // correct, not the translated-text trap (LEARNINGS).
+      const mcpName = "mcp__example-server__list_items";
+      const session = makeSessionRow({ toolUses: [{ name: mcpName, calls: 3 }] });
+      render(<SessionDetail session={session} />);
+      const chip = screen.getByTestId("tool-chip");
+      expect(chip.querySelector(".tool-chip__name")!.textContent).toBe(mcpName);
+      expect(chip.hasAttribute("title")).toBe(false);
+    });
+
+    it("shows an explicit empty state for a session with no tool calls, and no note", () => {
+      const session = makeSessionRow({ toolUses: [] });
+      render(<SessionDetail session={session} />);
+      expect(screen.getByTestId("tool-usage-empty").textContent).toBe(t("detail.tools.empty"));
+      expect(screen.queryByTestId("tool-usage-note")).toBeNull();
+      expect(screen.queryByTestId("tool-chip-list")).toBeNull();
+    });
   });
 });

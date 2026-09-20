@@ -2,6 +2,7 @@ import { decodeText, splitLines } from "./encoding.js";
 import { toBool, toInt, toMicroUsd, toStringOrNull } from "./numbers.js";
 import { createProblemCollector, MAX_PROBLEMS_PER_SCOPE, type Problem } from "./problems.js";
 import { sessionIdFromCwd } from "./session-id.js";
+import { createToolUseCounter } from "./tool-usage.js";
 import type {
   AuditSession,
   ModelUsageRecord,
@@ -31,6 +32,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 export function createAuditAccumulator(sourceId: string): AuditAccumulator {
   const problemCollector = createProblemCollector();
   const requests: RequestRecord[] = [];
+  const toolUseCounter = createToolUseCounter();
   const lifecycle = { queued: 0, started: 0, completed: 0 };
   let cwd: string | null = null;
   let initModel: string | null = null;
@@ -179,6 +181,14 @@ export function createAuditAccumulator(sourceId: string): AuditAccumulator {
         return;
       }
 
+      if (type === "assistant") {
+        // Delegated entirely to tool-usage.ts (S12 plan §2 Q2): this is the
+        // only place the parser reads an `assistant` line, and it reads
+        // nothing from it itself — the delegation is the whole branch.
+        toolUseCounter.addAssistantLine(obj);
+        return;
+      }
+
       // Any other type — including the message-stream lines whose
       // output_tokens field is a snapshot, not a total (see audit-types.ts,
       // TokenUsage.outputTokens) — is ignored. Already counted in lineCount;
@@ -201,6 +211,7 @@ export function createAuditAccumulator(sourceId: string): AuditAccumulator {
         malformedLineCount,
         encoding: null,
         problems: [...problemCollector.problems],
+        toolUses: toolUseCounter.value,
       });
     },
   };

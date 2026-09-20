@@ -5,10 +5,11 @@
  *
  * Sections, in order: header (measured cost), token categories (a token
  * SHARE, never a cost share — plan §2 Q5), server-tool/subagent summary,
+ * tool usage (S12 plan §4.6 — call counts only, never a cost attribution),
  * the session-scoped model breakdown (discharges S10's "session scope
  * deferred to S11" comment), the request list, and an open-request note.
- * S12 appends a tool-usage section to this same stack — vertical
- * `<section>`s so that is an append, not a relayout.
+ * Vertical `<section>`s throughout so S12's addition was an append, not a
+ * relayout.
  */
 import { Fragment } from "preact";
 import { t, tCurrency, tDateTime, tDuration, tNumber, tPercent, tPlural } from "../i18n/index.js";
@@ -53,6 +54,7 @@ export function SessionDetail(props: SessionDetailProps) {
   const webFetchRequests = session.totals.tokens.webFetchRequests;
   const subagentsSpawned = session.totals.subagentsSpawned;
   const showServerToolSummary = webSearchRequests + webFetchRequests + subagentsSpawned > 0;
+  const toolsHeadingId = `tool-usage-heading-${session.sessionId}`;
 
   return (
     <div class="session-detail" data-testid="session-detail" data-session-id={session.sessionId}>
@@ -129,6 +131,25 @@ export function SessionDetail(props: SessionDetailProps) {
           )}
         </section>
       )}
+
+      <section class="session-detail__tools" data-testid="tool-usage">
+        <h4 id={toolsHeadingId}>{t("detail.tools.heading")}</h4>
+        {session.toolUses.length === 0 ? (
+          <p data-testid="tool-usage-empty">{t("detail.tools.empty")}</p>
+        ) : (
+          <>
+            <p data-testid="tool-usage-note">{t("detail.tools.note")}</p>
+            <ul class="tool-chips" data-testid="tool-chip-list" aria-labelledby={toolsHeadingId}>
+              {session.toolUses.map((tool) => (
+                <li class="tool-chip" key={tool.name} data-testid="tool-chip" data-tool={tool.name}>
+                  <span class="tool-chip__name">{tool.name}</span>
+                  <span class="tool-chip__calls">{tNumber(tool.calls)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
       <section class="session-detail__models" data-testid="session-model-breakdown">
         <table class="model-panel__table">

@@ -62,7 +62,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S10 | Model breakdown, folder grouping, data gaps | US-2.3, US-2.4, US-1.5 (UI) | S9 |
 | **Phase 5 — Depth** ||||
 | S11 | ✅ Session detail: cost drivers | US-3.1 | S10 |
-| S12 | Tool usage per session | US-3.2 | S11 |
+| S12 | ✅ Tool usage per session | US-3.2 | S11 |
 | S13 | Date range filter | US-5.1 | S10 |
 | S14 | Trend over time | US-5.2 | S13 |
 | **Phase 6 — Money** ||||
@@ -336,6 +336,8 @@ money. Build that labelling now — do not leave a placeholder for it.
 **Exit.** Playwright spec drilling project → session → detail.
 
 ### S12 — Tool usage per session
+
+**Status. Done 2026-09-20.** Plan: `docs/plans/S12-tool-usage-per-session.md`.
 
 **Goal.** Which tools a session used, and how often.
 

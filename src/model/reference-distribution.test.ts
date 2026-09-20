@@ -105,5 +105,16 @@ describe.skipIf(!existsSync(dir))("reference distribution", () => {
     // displays — unlike the seven projects above. Pinned so it cannot drift.
     expect(report.folderGroups).toHaveLength(26);
     expect(report.totals.costMicroUsd).toBe(1_413_585_188);
+
+    // S12 plan §7: reading A's tool-call count on the reference tree. Readings
+    // B and C (§2 Q1) would give 5,771 and 5,403 respectively -- this pin is
+    // the cheapest standing proof nobody later "simplifies" the dedup key.
+    const toolCalls = report.sessions.reduce(
+      (sum, s) => sum + s.toolUses.reduce((n, tool) => n + tool.calls, 0),
+      0,
+    );
+    expect(toolCalls).toBe(7504);
+    expect(report.sessions.filter((s) => s.toolUses.length > 0)).toHaveLength(135);
+    expect(Math.max(...report.sessions.map((s) => s.toolUses.length))).toBe(20);
   });
 });

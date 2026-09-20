@@ -97,6 +97,30 @@ function resultLine(fields: {
   });
 }
 
+/**
+ * S12 plan §6: an `assistant` line carrying `tool_use` blocks, mirroring
+ * `resultLine`'s optional-field style. `requestId` is optional so a caller
+ * can reproduce the "no request_id" dedup fallback deliberately; every
+ * `tools` entry becomes one `tool_use` block with its own invented id.
+ */
+function assistantLine(fields: {
+  readonly requestId?: string;
+  readonly tools: readonly { readonly id: string; readonly name: string }[];
+}): string {
+  return JSON.stringify({
+    type: "assistant",
+    ...(fields.requestId ? { request_id: fields.requestId } : {}),
+    message: {
+      usage: { output_tokens: 2 },
+      content: fields.tools.map((tool) => ({
+        type: "tool_use",
+        id: tool.id,
+        name: tool.name,
+      })),
+    },
+  });
+}
+
 // Highest-cost group: above 1000 USD with non-zero cents, so a wrong locale
 // format or a wrong sort order gives a visibly different answer (plan §0.3
 // item 5). Carries a model-variant suffix alongside its base model (the
@@ -664,10 +688,25 @@ export const COST_DRIVERS_SESSION_ID = "driver01";
 /** No server-tool use, no subagents at all -- the "no summary" spec (plan §7). */
 export const COST_DRIVERS_QUIET_SESSION_ID = "driver02";
 
+/** S12 plan §6: ranked "Bash" (3) then "Read" (1) -- distinct counts so DOM order pins the rank. */
+export const COST_DRIVERS_TOOL_NAMES_RANKED = ["Bash", "Read"] as const;
+
 const COST_DRIVERS_AUDIT = [
   '{"type":"system","subtype":"init","model":"claude-opus-5"}',
   '{"type":"command_lifecycle","state":"queued"}',
   '{"type":"command_lifecycle","state":"started"}',
+  assistantLine({
+    requestId: "req-driver01a",
+    tools: [
+      { id: "toolu-driver01a1", name: "Bash" },
+      { id: "toolu-driver01a2", name: "Bash" },
+      { id: "toolu-driver01a3", name: "Read" },
+    ],
+  }),
+  assistantLine({
+    requestId: "req-driver01b",
+    tools: [{ id: "toolu-driver01b1", name: "Bash" }],
+  }),
   resultLine({
     timestamp: "2026-05-01T09:00:00.000Z",
     totalCostUsd: 12.5,

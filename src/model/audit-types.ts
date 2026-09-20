@@ -1,5 +1,6 @@
 import type { DetectedEncoding } from "./encoding.js";
 import type { Problem } from "./problems.js";
+import type { ToolUseCount } from "./tool-usage.js";
 
 export interface TokenUsage {
   readonly inputTokens: number;
@@ -90,4 +91,11 @@ export interface AuditSession {
   readonly encoding: DetectedEncoding | null;
   /** Capped at MAX_PROBLEMS_PER_SCOPE. */
   readonly problems: readonly Problem[];
+  /**
+   * Tool calls by name, ranked (calls desc, then name asc by code unit),
+   * deduplicated by (request_id, tool_use.id) — S12 plan §2 Q1. Never derived
+   * from an assistant line's token snapshot; the block's `input` and `id` are
+   * never carried here (NFR-6, §2 Q5).
+   */
+  readonly toolUses: readonly ToolUseCount[];
 }

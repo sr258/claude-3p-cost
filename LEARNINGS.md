@@ -9,6 +9,27 @@ Newest entry first.
 
 ---
 
+- **A regression pin computed from real data cannot prove a guard-rail that
+  happens to be a no-op on that data.** A dedup key that removes a duplicate
+  scores identically to no dedup at all when the real dataset never contains
+  the duplicate in the first place — the pinned total is the same either way.
+  Where a plan defends logic that is inert on the available real data, only a
+  synthetic fixture built to contain the duplicate actually tests it; say so
+  explicitly rather than citing the real-data pin as coverage for it.
+- **Making a shared type's field non-optional fans out into every hand-built
+  test object literal that constructs it, including files a session's plan
+  does not name.** `tsc` will not pass otherwise. This is expected fallout,
+  not scope creep — a plan adding a required field to a widely-used type
+  should say so, and an implementer should not hesitate to touch an unlisted
+  test file for exactly this reason.
+- **A source-level grep guard keyed on plain words also blocks the guarded
+  module's own comments from using those words**, and is trivially evadable by
+  a differently-spelled field access it wasn't written to catch. It is a cheap
+  tripwire, not a proof — write the module's documentation around the words it
+  must avoid, and pair the grep with a behavioural test that actually exercises
+  the property the grep is a stand-in for. The behavioural test is the one that
+  holds; treat the grep as the weaker half.
+
 - **A NUL-byte scan needs a form that works from a non-interactive shell, not
   just an interactive one.** `command grep -rlaP` assumes GNU-compatible grep;
   from this environment's Bash tool the same command resolves to BSD grep,

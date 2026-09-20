@@ -31,6 +31,7 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
     totals: EMPTY_TOTALS,
     models: { models: [], costMicroUsd: 0 },
     requests: [],
+    toolUses: [],
     ...partial,
   };
 }

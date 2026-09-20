@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createAuditAccumulator } from "./audit-parser.js";
+import { createAuditAccumulator, parseAuditText } from "./audit-parser.js";
 import { buildManifestIndex, parseManifestText } from "./manifest.js";
 import { createProblemCollector } from "./problems.js";
 import { resolveSession } from "./project-assignment.js";
@@ -15,6 +15,7 @@ import {
   MANIFEST_ORDINARY_JSON,
   MANIFEST_SENSITIVE_FIELDS_JSON,
 } from "../../test/fixtures/sessions/index.js";
+import { TOOL_USAGE_JSONL } from "../../test/fixtures/audit/index.js";
 
 function readText(path: string): string {
   return readFileSync(path, "utf-8");
@@ -117,5 +118,43 @@ describe("report privacy", () => {
       expect(keys).not.toContain("initialMessage");
       expect(JSON.stringify(request)).not.toMatch(/[/\\]/);
     }
+  });
+
+  it("ToolUseCount exposes only a name and a call count", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_ORDINARY_JSON),
+      basename(MANIFEST_ORDINARY_JSON),
+      problems,
+    )!;
+    const index = buildManifestIndex([parsed], problems);
+    const audit = parseAuditText(parsed.meta.sessionId, readText(TOOL_USAGE_JSONL));
+    const resolved = resolveSession(audit, index, new Map(), problems);
+
+    const report = buildReport([resolved], problems.problems);
+    const toolUses = report.sessions[0]!.toolUses;
+    expect(toolUses.length).toBeGreaterThan(0);
+    for (const tool of toolUses) {
+      expect(Object.keys(tool).sort()).toEqual(["calls", "name"]);
+    }
+  });
+
+  it("no tool_use id reaches SessionRow", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_ORDINARY_JSON),
+      basename(MANIFEST_ORDINARY_JSON),
+      problems,
+    )!;
+    const index = buildManifestIndex([parsed], problems);
+    const audit = parseAuditText(parsed.meta.sessionId, readText(TOOL_USAGE_JSONL));
+    const resolved = resolveSession(audit, index, new Map(), problems);
+
+    const report = buildReport([resolved], problems.problems);
+    const session = report.sessions[0]!;
+    expect(session.toolUses.length).toBeGreaterThan(0);
+    // The tool-usage fixture's tool_use ids all follow "toolu_" -- none of
+    // them may survive into the row (NFR-6, S12 plan §2 Q5).
+    expect(JSON.stringify(session)).not.toMatch(/toolu_/);
   });
 });

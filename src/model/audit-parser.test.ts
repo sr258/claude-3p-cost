@@ -14,6 +14,7 @@ import {
   EMPTY_JSONL,
   MALFORMED_JSONL,
   PARTIAL_FIELDS_JSONL,
+  TOOL_USAGE_JSONL,
 } from "../../test/fixtures/audit/index.js";
 
 function readText(path: string): string {
@@ -192,6 +193,38 @@ describe("finish idempotency", () => {
     const first = accumulator.finish();
     const second = accumulator.finish();
     expect(second).toEqual(first);
+  });
+});
+
+describe("tool usage (S12 plan §5, §6)", () => {
+  it("parses tool_use counts from the tool-usage fixture", () => {
+    const session = parseAuditText("f00d1234", readText(TOOL_USAGE_JSONL));
+    expect(session.toolUses).toEqual([
+      { name: "Bash", calls: 3 },
+      { name: "Grep", calls: 2 },
+      { name: "Read", calls: 2 },
+      { name: "Zebra", calls: 2 },
+      { name: "Ärger", calls: 2 },
+      { name: "Edit", calls: 1 },
+      { name: "WebSearch", calls: 1 },
+      { name: "mcp__docs-server__search", calls: 1 },
+      { name: "mcp__example-server__list_items", calls: 1 },
+    ]);
+  });
+
+  it("AuditSession.toolUses is ranked and frozen", () => {
+    const session = parseAuditText("f00d1234", readText(TOOL_USAGE_JSONL));
+    expect(Object.isFrozen(session.toolUses)).toBe(true);
+    const calls = session.toolUses.map((t) => t.calls);
+    for (let i = 1; i < calls.length; i += 1) {
+      expect(calls[i]).toBeLessThanOrEqual(calls[i - 1]);
+    }
+  });
+
+  it("a session with no assistant lines has an empty toolUses list", () => {
+    const session = parseAuditText("a1b2c3d4", readText(BASIC_JSONL));
+    expect(session.toolUses).toEqual([]);
+    expect(Object.isFrozen(session.toolUses)).toBe(true);
   });
 });
 

@@ -41,6 +41,10 @@ export const de = {
   "detail.thinkingOfOutput": "{share} vom Output",
   "detail.tokenShareNote":
     "Anteile sind Token-Anteile, keine Kostenanteile: es ist keine Preistabelle hinterlegt.",
+  "detail.tools.empty": "Keine Werkzeugaufrufe erfasst",
+  "detail.tools.heading": "Werkzeugnutzung",
+  "detail.tools.note":
+    "Aufrufzahlen, keine Kostenzuordnung: abgerechnet wird pro API-Anfrage; ein Werkzeugergebnis wirkt sich nur indirekt aus, indem es den Kontext folgender Anfragen vergrößert.",
   "detail.webFetch.one": "{count} Web-Abruf",
   "detail.webFetch.other": "{count} Web-Abrufe",
   "detail.webSearch.one": "{count} Websuche",

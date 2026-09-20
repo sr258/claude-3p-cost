@@ -138,6 +138,7 @@ function buildSessionRow(
     totals: totalsAcc.value,
     models: modelAcc.value,
     requests: Object.freeze([...session.audit.requests].sort(compareRequestsByTimestamp)),
+    toolUses: session.audit.toolUses,
   });
 }
 

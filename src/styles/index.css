@@ -473,6 +473,43 @@ body {
   color: var(--c3p-text-secondary);
 }
 
+/* ─── Tool usage (S12, US-3.2) ────────────────────────────────────────────── */
+
+.tool-chips {
+  display: flex;
+  flex-wrap: wrap; /* chips wrap to further lines; S12 plan §2 Q4 */
+  gap: var(--c3p-space-s);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tool-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--c3p-space-xs);
+  /* NO max-width beyond 100% and NO text-overflow: a chip grows to fit its
+     full name. Truncating an MCP tool name would destroy its identity —
+     S12 plan §2 Q4/Q5. max-width: 100% exists only so a chip cannot force
+     the detail box to scroll horizontally. */
+  max-width: 100%;
+  padding: var(--c3p-space-xxs) var(--c3p-space-s);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-contrast-5);
+  font-size: var(--c3p-font-xs);
+}
+
+.tool-chip__name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere; /* a name longer than the row wraps inside its chip */
+}
+
+.tool-chip__calls {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 /* ─── Gap indicators (S10, US-1.5) ───────────────────────────────────────── */
 
 .gap-indicators {

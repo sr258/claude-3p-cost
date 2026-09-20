@@ -74,6 +74,7 @@ function makeAudit(
     malformedLineCount: 0,
     encoding: null,
     problems: [],
+    toolUses: [],
     ...overrides,
   };
 }
@@ -562,6 +563,51 @@ describe("buildReport", () => {
       // Same totals, group and day-bucket figures as before `requests` was
       // added to `SessionRow` -- restoring the list changes no aggregate.
       expect(report.totals.costMicroUsd).toBe(100_000);
+      expect(report.projectGroups[0]!.totals.costMicroUsd).toBe(100_000);
+      expect(report.byDay).toEqual([
+        expect.objectContaining({ key: "2026-01-01", costMicroUsd: 100_000, requests: 1 }),
+      ]);
+    });
+  });
+
+  describe("SessionRow.toolUses (S12 plan §4.4, §5, §6)", () => {
+    const toolUses = [
+      { name: "Bash", calls: 3 },
+      { name: "Read", calls: 1 },
+    ];
+
+    it("carries the parser's ranked counts", () => {
+      const session = makeSession("s1", [makeRequest()]);
+      const audit = { ...session.audit, toolUses };
+      const report = buildReport([{ ...session, audit }], []);
+      expect(report.sessions[0]!.toolUses).toEqual(toolUses);
+    });
+
+    it("is frozen and not re-sorted by the report", () => {
+      // Deliberately NOT calls-descending: proves the report passes the
+      // parser's order through rather than re-deriving it.
+      const unsorted = Object.freeze([
+        { name: "Read", calls: 1 },
+        { name: "Bash", calls: 3 },
+      ]);
+      const session = makeSession("s1", [makeRequest()]);
+      const audit = { ...session.audit, toolUses: unsorted };
+      const report = buildReport([{ ...session, audit }], []);
+      expect(report.sessions[0]!.toolUses).toEqual(unsorted);
+      expect(report.sessions[0]!.toolUses).toBe(unsorted);
+      expect(Object.isFrozen(report.sessions[0]!.toolUses)).toBe(true);
+    });
+
+    it("adding tool counts changes no total, bucket or group", () => {
+      const session = makeSession(
+        "s1",
+        [makeRequest({ costMicroUsd: 100_000, timestamp: "2026-01-01T00:00:00.000Z" })],
+        { project: { kind: "named", spaceId: "p1", name: "One" } },
+      );
+      const audit = { ...session.audit, toolUses };
+      const report = buildReport([{ ...session, audit }], []);
+      expect(report.totals.costMicroUsd).toBe(100_000);
+      expect(report.totals.requests).toBe(1);
       expect(report.projectGroups[0]!.totals.costMicroUsd).toBe(100_000);
       expect(report.byDay).toEqual([
         expect.objectContaining({ key: "2026-01-01", costMicroUsd: 100_000, requests: 1 }),
