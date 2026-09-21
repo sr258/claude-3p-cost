@@ -62,6 +62,7 @@ vi.mock("../services/scan.js", () => ({
 }));
 
 import { scanDiscovery } from "../services/scan.js";
+import { DEFAULT_PRICES } from "../model/default-prices.js";
 import {
   activeRange,
   clearGroupScope,
@@ -73,9 +74,12 @@ import {
   grouping,
   lastScanAt,
   modelPanelOpen,
+  priceOverrides,
+  priceTable,
   rangeInvalid,
   rangePreset,
   report,
+  resetAllPrices,
   runScan,
   scanState,
   selectedGroupKey,
@@ -85,11 +89,14 @@ import {
   setCustomDays,
   setGrouping,
   setModelPanelOpen,
+  setPrice,
   setRangePreset,
   setSessionSort,
+  setView,
   toggleGroup,
   toggleGroupScope,
   toggleSession,
+  view,
 } from "./app-state.js";
 
 describe("runScan", () => {
@@ -337,5 +344,56 @@ describe("date range filter (S13 plan §4.7)", () => {
 
     expect(rangePreset.value).toBe("thisMonth");
     expect(activeRange.value).toEqual(rangeBefore);
+  });
+});
+
+describe("setView", () => {
+  it("switches between overview and prices", () => {
+    view.value = "overview";
+    setView("prices");
+    expect(view.value).toBe("prices");
+    setView("overview");
+    expect(view.value).toBe("overview");
+  });
+});
+
+describe("price signals (S15 plan §5.4)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    resetAllPrices();
+  });
+
+  it("setPrice persists through price-store and updates priceTable", () => {
+    const [firstModel] = DEFAULT_PRICES.keys();
+    setPrice(firstModel!, "input", 1_234_000);
+
+    expect(priceTable.value.get(firstModel!)!.input).toBe(1_234_000);
+
+    // Round-trips through localStorage, independent of the live signal.
+    const stored = JSON.parse(localStorage.getItem("claude3pcost.prices")!) as Record<
+      string,
+      Record<string, number>
+    >;
+    expect(stored[firstModel!]!.input).toBe(1_234_000);
+  });
+
+  it("resetAllPrices restores every default", () => {
+    const [firstModel] = DEFAULT_PRICES.keys();
+    setPrice(firstModel!, "input", 1_234_000);
+
+    resetAllPrices();
+
+    expect(priceOverrides.value.size).toBe(0);
+    expect(priceTable.value.get(firstModel!)).toEqual(DEFAULT_PRICES.get(firstModel!));
+  });
+
+  it("runScan leaves priceOverrides untouched", async () => {
+    const [firstModel] = DEFAULT_PRICES.keys();
+    setPrice(firstModel!, "input", 1_234_000);
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
+
+    await runScan();
+
+    expect(priceOverrides.value.get(firstModel!)?.get("input")).toBe(1_234_000);
   });
 });

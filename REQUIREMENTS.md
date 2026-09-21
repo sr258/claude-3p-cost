@@ -454,7 +454,10 @@ Acceptance criteria:
   strict/ES2022, Vite, plain CSS with custom properties, Vitest + jsdom, Tauri
   v2, npm, GitHub Actions. Deviations require justification in `CLAUDE.md`.
   Deliberate deviations so far: `@tauri-apps/plugin-fs` for filesystem access
-  and watching, `@tauri-apps/plugin-dialog` for the US-1.2 folder picker (S7),
+  and watching, `@tauri-apps/plugin-dialog` for the US-1.2 folder picker (S7)
+  and, from S15, reused for US-4.2's price-table JSON export/import (a native
+  save/open dialog plus two new Rust commands, never `@tauri-apps/plugin-fs`
+  itself, so the read-only capability list is untouched),
   `@testing-library/preact` as a dev-only component-testing tool (S7), a
   charting library (US-3.3), a translation layer (NFR-7), and
   Playwright for end-to-end tests (NFR-9). CalView's HTTP plugin, keyring and

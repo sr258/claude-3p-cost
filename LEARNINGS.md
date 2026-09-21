@@ -9,6 +9,40 @@ Newest entry first.
 
 ---
 
+- **`JSON.stringify` cannot produce a `__proto__` key, so any
+  prototype-pollution test built from an object literal is vacuous.** In a
+  literal, `__proto__: {...}` sets the prototype instead of creating an own
+  property; `stringify` then emits `{}` and the "malicious" document contains
+  nothing dangerous at all. `JSON.parse` does create it as an own property.
+  Build such documents as raw JSON strings, and assert the precondition
+  (`Object.hasOwn(parsed, "__proto__")`) so the test cannot silently go hollow.
+- **A reachability guard needs a list of modules it must reach, not just a size
+  floor.** `graph.size > 6` proves the traversal reached something; it cannot
+  distinguish a graph covering every module that can touch the filesystem from
+  one that wandered into six translation catalogues. Without naming what each
+  graph is responsible for, the entry set is decorative and gutting it fails
+  nothing. A corollary for negative controls on such a guard: removing an entry
+  proves nothing if another listed entry already imports it.
+- **Canonicalising a path's parent does not confine the path.** The file *name*
+  can itself be a symlink into a protected directory, and `OpenOptions::open`
+  follows it — the parent check passes and the protected file is truncated.
+  Resolve the full target whenever it already exists, not only the directory
+  holding it.
+- **An ISO day string formatted through `Intl` renders the previous day west of
+  UTC.** `new Date("2026-09-21")` is UTC midnight and `dateStyle` formatting
+  defaults to the host zone. A calendar day carrying no zone must be formatted
+  with `timeZone: "UTC"`; a test deriving its expectation from the same
+  `new Date(iso)` the component uses agrees with the bug rather than catching it.
+- **`cargo test` parallelises across a shared `static`, and a lock held only
+  while mutating it is not enough** — the guard has to be held for the whole
+  test body. Tests touching shared Rust state race into spurious failures with
+  no bug in the code under test; removing the guard here failed in 8 runs of 8.
+- **A bundle-marker guard must enumerate every fake that exists, not the one it
+  was written for.** A second fake module ships its own marker, and a script
+  greping for a single hardcoded string passes cleanly over a bundle containing
+  the other one — the silent pass the guard exists to prevent. Re-run its
+  negative control whenever a fake changes shape, and check the existing alias
+  list before assuming a support module needs creating.
 - **A "computed before X" ordering guard rail is only testable if X can
   discard something the computation would have used.** Where the discard
   criterion is definitionally the same predicate as "this row contributes

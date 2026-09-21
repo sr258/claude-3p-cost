@@ -88,7 +88,7 @@ recorded here.
 | Localization | German + English, own lightweight translation layer + `Intl` |
 | Filesystem access | `@tauri-apps/plugin-fs` (read-only scopes) |
 | File watching | Tauri fs watch |
-| Folder picker | `@tauri-apps/plugin-dialog` — an NFR-8 deviation (S7): US-1.2 needs a native folder picker; this is Tauri's sanctioned plugin rather than a hand-rolled `rfd` command, and it adds no network capability (NFR-5 intact). |
+| Folder picker / price JSON export-import | `@tauri-apps/plugin-dialog` — an NFR-8 deviation (S7): US-1.2 needs a native folder picker; this is Tauri's sanctioned plugin rather than a hand-rolled `rfd` command, and it adds no network capability (NFR-5 intact). S15 (US-4.2) reuses the same plugin for `dialog.save()` / `dialog.open()` — the price table's JSON export/import — rather than adding a second dependency; the actual bytes never cross `@tauri-apps/plugin-fs` at all, only through two new Rust commands (`write_export_file`, `read_import_file` in `src-tauri/src/lib.rs`) that enforce the US-1.6 session-root exclusion against the real filesystem, so the `fs:` capability list stays exactly the S7 read set. |
 | Charts | A lightweight, maintained SVG/Canvas library — see "Charting library" below |
 | Desktop Packaging | Tauri v2 |
 | Unit testing | Vitest with jsdom + `@testing-library/preact` for components (S7 devDependency, NFR-8 deviation: the first `.tsx` component needed a component-testing tool, and the alternative was an untested component or poking at `document.body.innerHTML` by hand). Convention: query by accessible role where one exists, `data-testid` otherwise, never by translated text — so a language switch cannot break a test. |
@@ -316,25 +316,43 @@ dist-e2e`; under that mode only, `vite.config.ts` aliases
 `@tauri-apps/plugin-fs` and `@tauri-apps/api/core` to
 `e2e/support/fake-tauri-plugin.ts`, an in-memory stand-in for the exact read
 surface `src/services/filesystem-tauri.ts` imports (`exists`, `stat`,
-`readDir`, `readFile`, `open({ read: true })`, `invoke`) — no write-capable
-export exists in that module at all. `e2e/support/app.ts`'s `gotoApp()`
-installs the fixture tree on `globalThis.__C3P_E2E_TREE__` and a dummy
-`__TAURI_INTERNALS__` via `addInitScript`, before navigation, so
+`readDir`, `readFile`, `open({ read: true })`, `invoke`). `e2e/support/app.ts`'s
+`gotoApp()` installs the fixture tree on `globalThis.__C3P_E2E_TREE__` and a
+dummy `__TAURI_INTERNALS__` via `addInitScript`, before navigation, so
 `createFileSystem()` takes its Tauri branch inside the page. `src/` stays
 entirely test-unaware: nothing under `src/` imports anything under `e2e/`,
 and the alias only ever applies under `--mode e2e`, never `vite build`'s
 default production mode.
 
+**S15 (US-4.2) amends this invariant, deliberately and loudly**, because
+making the price editor's save/open dialog driveable from Playwright meant
+`invoke` had to grow two branches (`write_export_file`, `read_import_file`).
+The sentence that used to stand here — "no write-capable export exists in
+that module at all" — is now false as written, and is rewritten rather than
+quietly widened: no export of `fake-tauri-plugin.ts` writes to the FAKE
+TREE — the read surface above is exactly as before — and `invoke`'s two new
+branches write only to a separate `globalThis.__C3P_E2E_SAVED__` sink that no
+tree reader above ever consults. Asserted behaviourally in
+`e2e/support/fake-tauri-plugin.test.ts`. A second fake module,
+`e2e/support/fake-dialog-plugin.ts`, stands in for `@tauri-apps/plugin-dialog`
+under the same `--mode e2e` alias (`save()`/`open()` resolve from
+`globalThis.__C3P_E2E_SAVE_PATH__` / `__C3P_E2E_OPEN_PATH__`, `null` for a
+cancelled dialog) — it needs its own module because `plugin-fs` and
+`plugin-dialog` both export a function named `open`, which would collide
+inside one fake.
+
 `npm run test:e2e` (`playwright test`) builds and serves `dist-e2e/` itself
 (`playwright.config.ts`'s `webServer.command`), so a stale bundle can never
 be tested by accident, and the separate output directory keeps `dist/` free
-of e2e artefacts. `npm run check:no-fake` greps `dist/` for the fake
-module's marker identifier and fails non-zero on a hit — CI runs it right
-after `npm run build`, before `npm run test:e2e`. That guard's negative
-control (LEARNINGS: a name-level static guard is only as good as its last
-negative control) is run by hand each time the fake changes shape: build in
-`e2e` mode into `dist/` deliberately, confirm the script reports a hit and
-exits non-zero, then rebuild normally and confirm it passes.
+of e2e artefacts. `npm run check:no-fake` greps `dist/` for **both** fakes'
+marker identifiers (`__C3P_E2E_FAKE_TAURI_PLUGIN__`,
+`__C3P_E2E_FAKE_DIALOG_PLUGIN__` — S15 added the second) and fails non-zero
+on a hit — CI runs it right after `npm run build`, before `npm run
+test:e2e`. That guard's negative control (LEARNINGS: a name-level static
+guard is only as good as its last negative control) is run by hand each time
+a fake changes shape: build in `e2e` mode into `dist/` deliberately, confirm
+the script reports hits for BOTH markers and exits non-zero, then rebuild
+normally and confirm it passes.
 
 The end-to-end regression check — full `reference-material/` tree yields
 1,413.59 USD, 150 sessions, 508 requests, 7 projects — is run manually against

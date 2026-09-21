@@ -32,9 +32,13 @@ import { groupLabelText } from "./components/group-label.js";
 import { GroupingToggle } from "./components/grouping-toggle.js";
 import { ModelPanel, type ModelScope } from "./components/model-panel.js";
 import { OverviewTable } from "./components/overview-table.js";
+import { PriceTableEditor } from "./components/price-table-editor.js";
 import { StatusBar } from "./components/status-bar.js";
 import { TrendSection } from "./components/trend-section.js";
+import { ViewSwitch } from "./components/view-switch.js";
 import { dayStringsOf, isAllTime } from "./model/date-range.js";
+import { DEFAULT_PRICES, DEFAULT_PRICES_AS_OF } from "./model/default-prices.js";
+import { buildPriceRows } from "./model/price-table.js";
 import { findGroup } from "./model/report.js";
 import { buildTrend } from "./model/trend.js";
 import { localZoneOffset } from "./services/zone.js";
@@ -43,13 +47,19 @@ import {
   clearGroupScope,
   customFromDay,
   customToDay,
+  exportPrices,
   expandedKeysFor,
   expandedSessionKeysFor,
   grouping,
+  importPrices,
+  importPricesFromFile,
   modelPanelOpen,
+  priceOverrides,
   rangeInvalid,
   rangePreset,
   report,
+  resetAllPrices,
+  resetPriceRow,
   runScan,
   scanState,
   selectedGroupKey,
@@ -58,15 +68,18 @@ import {
   setCustomDays,
   setGrouping,
   setModelPanelOpen,
+  setPrice,
   setRangePreset,
   setSessionSort,
   setTrendGranularity,
   setTrendOpen,
+  setView,
   toggleGroup,
   toggleGroupScope,
   toggleSession,
   trendGranularity,
   trendOpen,
+  view,
 } from "./state/app-state.js";
 
 export function App() {
@@ -117,88 +130,110 @@ export function App() {
     <main class="app-shell" data-testid="app-shell">
       <header class="app-bar">
         <h1 class="app-bar__title">{t("app.title")}</h1>
+        <ViewSwitch value={view.value} onChange={setView} />
         <LanguageSwitcher />
         <span class="app-bar__version">{t("app.version", { version: __APP_VERSION__ })}</span>
       </header>
 
-      <p class="app-shell__subtitle">{t("app.subtitle")}</p>
-
-      {currentReport && (
-        <GapIndicators
-          gaps={currentReport.gaps}
-          rangeActive={rangeActive}
-          undatedExcluded={currentReport.excluded.undatedRequests}
+      {view.value === "prices" ? (
+        <PriceTableEditor
+          rows={buildPriceRows(
+            currentReport?.models.models ?? [],
+            DEFAULT_PRICES,
+            priceOverrides.value,
+          )}
+          asOfDate={DEFAULT_PRICES_AS_OF}
+          onSetPrice={setPrice}
+          onResetRow={resetPriceRow}
+          onResetAll={resetAllPrices}
+          onExport={exportPrices}
+          onImportFile={importPricesFromFile}
+          onApplyImport={importPrices}
         />
-      )}
-
-      {hasGroups && currentReport ? (
+      ) : (
         <>
-          {scanState.value === "scanning" && <p data-testid="scan-running">{t("scan.running")}</p>}
-          <div class="toolbar-row">
-            <GroupingToggle value={currentGrouping} onChange={setGrouping} />
-            <DateRangeFilter
-              preset={currentPreset}
-              fromDay={displayFromDay}
-              toDay={displayToDay}
-              invalid={rangeInvalid.value}
-              onPreset={setRangePreset}
-              onCustomDays={setCustomDays}
-            />
-            {!modelPanelOpen.value && (
-              <button
-                type="button"
-                class="model-panel-open"
-                data-testid="model-panel-open"
-                onClick={() => setModelPanelOpen(true)}
-              >
-                {t("models.openPanel")}
-              </button>
-            )}
-          </div>
-          <div
-            class={
-              modelPanelOpen.value ? "content-grid" : "content-grid content-grid--panel-closed"
-            }
-          >
-            <OverviewTable
-              groups={groups}
-              totals={currentReport.totals}
-              expandedKeys={expandedKeysFor(currentGrouping)}
-              sortField={sessionSortField.value}
-              sortDirection={sessionSortDirection.value}
-              onToggle={(groupKey) => toggleGroup(currentGrouping, groupKey)}
-              onSort={setSessionSort}
-              grouping={currentGrouping}
-              selectedKey={selectedKey}
-              onSelect={(groupKey) => toggleGroupScope(currentGrouping, groupKey)}
-              expandedSessionKeys={expandedSessionKeysFor(currentGrouping)}
-              onToggleSession={(sessionId) => toggleSession(currentGrouping, sessionId)}
+          <p class="app-shell__subtitle">{t("app.subtitle")}</p>
+
+          {currentReport && (
+            <GapIndicators
+              gaps={currentReport.gaps}
               rangeActive={rangeActive}
-            />
-            {modelPanelOpen.value && panelBreakdown && panelTotals && (
-              <ModelPanel
-                breakdown={panelBreakdown}
-                totals={panelTotals}
-                scope={scope}
-                onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
-                onClose={() => setModelPanelOpen(false)}
-              />
-            )}
-          </div>
-          {trendSeries && (
-            <TrendSection
-              series={trendSeries}
-              granularity={trendGranularity.value}
-              scope={scope}
-              open={trendOpen.value}
-              onGranularity={setTrendGranularity}
-              onToggleOpen={() => setTrendOpen(!trendOpen.value)}
-              onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
+              undatedExcluded={currentReport.excluded.undatedRequests}
             />
           )}
+
+          {hasGroups && currentReport ? (
+            <>
+              {scanState.value === "scanning" && (
+                <p data-testid="scan-running">{t("scan.running")}</p>
+              )}
+              <div class="toolbar-row">
+                <GroupingToggle value={currentGrouping} onChange={setGrouping} />
+                <DateRangeFilter
+                  preset={currentPreset}
+                  fromDay={displayFromDay}
+                  toDay={displayToDay}
+                  invalid={rangeInvalid.value}
+                  onPreset={setRangePreset}
+                  onCustomDays={setCustomDays}
+                />
+                {!modelPanelOpen.value && (
+                  <button
+                    type="button"
+                    class="model-panel-open"
+                    data-testid="model-panel-open"
+                    onClick={() => setModelPanelOpen(true)}
+                  >
+                    {t("models.openPanel")}
+                  </button>
+                )}
+              </div>
+              <div
+                class={
+                  modelPanelOpen.value ? "content-grid" : "content-grid content-grid--panel-closed"
+                }
+              >
+                <OverviewTable
+                  groups={groups}
+                  totals={currentReport.totals}
+                  expandedKeys={expandedKeysFor(currentGrouping)}
+                  sortField={sessionSortField.value}
+                  sortDirection={sessionSortDirection.value}
+                  onToggle={(groupKey) => toggleGroup(currentGrouping, groupKey)}
+                  onSort={setSessionSort}
+                  grouping={currentGrouping}
+                  selectedKey={selectedKey}
+                  onSelect={(groupKey) => toggleGroupScope(currentGrouping, groupKey)}
+                  expandedSessionKeys={expandedSessionKeysFor(currentGrouping)}
+                  onToggleSession={(sessionId) => toggleSession(currentGrouping, sessionId)}
+                  rangeActive={rangeActive}
+                />
+                {modelPanelOpen.value && panelBreakdown && panelTotals && (
+                  <ModelPanel
+                    breakdown={panelBreakdown}
+                    totals={panelTotals}
+                    scope={scope}
+                    onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
+                    onClose={() => setModelPanelOpen(false)}
+                  />
+                )}
+              </div>
+              {trendSeries && (
+                <TrendSection
+                  series={trendSeries}
+                  granularity={trendGranularity.value}
+                  scope={scope}
+                  open={trendOpen.value}
+                  onGranularity={setTrendGranularity}
+                  onToggleOpen={() => setTrendOpen(!trendOpen.value)}
+                  onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
+                />
+              )}
+            </>
+          ) : (
+            <EmptyState />
+          )}
         </>
-      ) : (
-        <EmptyState />
       )}
 
       <StatusBar />

@@ -1,18 +1,24 @@
 #!/usr/bin/env node
 /**
  * "No fake in the production bundle" guard (S8 plan §8, LEARNINGS). Greps
- * `dist/` for the e2e fake's marker identifier and exits non-zero on a hit.
+ * `dist/` for the e2e fakes' marker identifiers and exits non-zero on a hit.
+ *
+ * S15 (plan §5.4) adds a SECOND fake module (`fake-dialog-plugin.ts`, for
+ * US-4.2's export/import dialog) with its own marker — a single-marker
+ * script would pass over a bundle containing that fake alone, so both are
+ * checked.
  *
  * The negative control is a COMMAND, not a reasoning exercise (LEARNINGS: a
  * name-level static guard is only as good as its last negative control):
  * build in `e2e` mode into `dist/` deliberately, confirm this script reports
- * a hit and exits non-zero, then rebuild normally and confirm it passes.
+ * hits for BOTH markers and exits non-zero, then rebuild normally and
+ * confirm it passes.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MARKER = "__C3P_E2E_FAKE_TAURI_PLUGIN__";
+const MARKERS = ["__C3P_E2E_FAKE_TAURI_PLUGIN__", "__C3P_E2E_FAKE_DIALOG_PLUGIN__"];
 const root = fileURLToPath(new URL("..", import.meta.url));
 const distDir = join(root, "dist");
 
@@ -41,13 +47,15 @@ try {
 const hits = [];
 for (const file of files) {
   const content = readFileSync(file, "utf-8");
-  if (content.includes(MARKER)) {
-    hits.push(file);
+  for (const marker of MARKERS) {
+    if (content.includes(marker)) {
+      hits.push(`${file} (${marker})`);
+    }
   }
 }
 
 if (hits.length > 0) {
-  console.error("check-no-fake: the e2e fake's marker was found in dist/:");
+  console.error("check-no-fake: an e2e fake's marker was found in dist/:");
   for (const hit of hits) {
     console.error(`  ${hit}`);
   }

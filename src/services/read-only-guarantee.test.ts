@@ -1,10 +1,23 @@
 /**
  * US-1.6: nothing this app can reach may write, rename, move or delete
- * inside a session root (S7 plan §8). This test does not trust the
- * implementation it is checking — it is built so a WRONG analyser gives a
- * different answer, per LEARNINGS ("build a test so the wrong
- * implementation gives a different answer"). Part 3 is the self-check that
- * makes that true.
+ * inside a session root (S7 plan §8; restructured S15 plan §5.1). This test
+ * does not trust the implementation it is checking — it is built so a WRONG
+ * analyser gives a different answer, per LEARNINGS ("build a test so the
+ * wrong implementation gives a different answer"). Part 3 is the self-check
+ * that makes that true.
+ *
+ * S15 introduces the app's first filesystem WRITE (JSON export, US-4.2) via
+ * two new Tauri commands. Rather than widening the single flat allowlist
+ * that guarded the scanner (which would let `scan.ts` call the file writer
+ * too), this file now analyses TWO graphs, each with its OWN allowlist:
+ * the "scanner" graph (unchanged from S7: `scan.ts`, `discovery.ts`,
+ * `filesystem.ts`, `filesystem-tauri.ts`) and the "app" graph (new: the
+ * whole reachable frontend from `app.tsx` / `state/app-state.ts`, which also
+ * closes the pre-existing `folder-picker.ts` blind spot as a free side
+ * effect). The scanner graph's allowlist stays exactly two commands
+ * (`host_environment`, `grant_read_access`) — this is the property the split
+ * exists to preserve, and the negative control in this file's own test suite
+ * (see "the split did not widen the scanner allowlist") is what proves it.
  *
  * `node:fs` is used here, in a test file, to read the real module graph —
  * production code under `src/` never does this.
@@ -33,8 +46,6 @@ const BANNED_FS_NAMES = new Set([
   "copyFile",
   "truncate",
 ]);
-
-const ALLOWED_INVOKE_COMMANDS = new Set(["host_environment", "grant_read_access"]);
 
 const FS_PLUGIN_SPECIFIER = "@tauri-apps/plugin-fs";
 const CORE_SPECIFIER = "@tauri-apps/api/core";
@@ -71,7 +82,7 @@ function stripComments(source: string): string {
   return withoutBlocks.replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-/** Resolves a relative specifier from `fromFile` to an existing `.ts` file, or null. */
+/** Resolves a relative specifier from `fromFile` to an existing `.ts`/`.tsx` file, or null. */
 function resolveRelative(fromFile: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) {
     return null; // a package specifier — not part of the traversal
@@ -80,6 +91,7 @@ function resolveRelative(fromFile: string, specifier: string): string | null {
   const candidates = [
     base,
     base.endsWith(".js") ? base.slice(0, -3) + ".ts" : `${base}.ts`,
+    base.endsWith(".js") ? base.slice(0, -3) + ".tsx" : `${base}.tsx`,
     join(base, "index.ts"),
   ];
   for (const candidate of candidates) {
@@ -156,8 +168,17 @@ function loadReachableGraph(entryFiles: readonly string[]): Map<string, string> 
   return graph;
 }
 
-/** The checks Part 1 and Part 3 both run, over a `file -> source` map. */
-function analyse(sources: ReadonlyMap<string, string>): Violation[] {
+/**
+ * The checks Part 1 and Part 3 both run, over a `file -> source` map.
+ * `allowedInvokeCommands` is a PARAMETER, not a module-level constant
+ * (S15 plan §5.1.1): each graph analyses against its own allowlist, so the
+ * scanner graph's allowlist cannot be widened as a side effect of adding a
+ * command the app graph needs.
+ */
+function analyse(
+  sources: ReadonlyMap<string, string>,
+  allowedInvokeCommands: ReadonlySet<string>,
+): Violation[] {
   const violations: Violation[] = [];
 
   for (const [file, source] of sources) {
@@ -188,7 +209,7 @@ function analyse(sources: ReadonlyMap<string, string>): Violation[] {
 
     for (const match of source.matchAll(invokeCallRegExp(source))) {
       const command = match[1]!;
-      if (!ALLOWED_INVOKE_COMMANDS.has(command)) {
+      if (!allowedInvokeCommands.has(command)) {
         violations.push({ kind: "invoke-not-allowlisted", file, detail: command });
       }
     }
@@ -201,43 +222,100 @@ function analyse(sources: ReadonlyMap<string, string>): Violation[] {
   return violations;
 }
 
-const ENTRY_FILES = [
-  join(SRC_ROOT, "services/scan.ts"),
-  join(SRC_ROOT, "services/discovery.ts"),
-  join(SRC_ROOT, "services/filesystem.ts"),
-  join(SRC_ROOT, "services/filesystem-tauri.ts"),
+interface GuardedGraph {
+  readonly name: string;
+  readonly entries: readonly string[];
+  readonly allowedInvokeCommands: ReadonlySet<string>;
+  /**
+   * Modules this graph MUST reach, none of them an entry itself. The
+   * traversal floor below (`graph.size > 6`) only proves the BFS reached
+   * *something*; it cannot tell a graph that covers the modules which can
+   * actually touch the filesystem from one that wandered into six
+   * translation catalogues. Without this, the app graph's entry set is not
+   * load-bearing — S15's negative control 4 (remove `state/app-state.ts`
+   * from the entries) changed nothing, because `app.tsx` imports it anyway,
+   * and no test could tell. These names are what makes gutting the entry
+   * set, or moving the write behind a module the entries no longer reach,
+   * fail loudly.
+   */
+  readonly mustReach: readonly string[];
+}
+
+const GRAPHS: readonly GuardedGraph[] = [
+  {
+    name: "scanner",
+    // UNCHANGED from S7, deliberately (S15 plan §5.1.1): entries, allowlist
+    // and floor all stay exactly as they were before this session.
+    entries: [
+      join(SRC_ROOT, "services/scan.ts"),
+      join(SRC_ROOT, "services/discovery.ts"),
+      join(SRC_ROOT, "services/filesystem.ts"),
+      join(SRC_ROOT, "services/filesystem-tauri.ts"),
+    ],
+    allowedInvokeCommands: new Set(["host_environment", "grant_read_access"]),
+    // Reached only THROUGH the entries: the byte->line boundary and the
+    // parser the scanner feeds.
+    mustReach: ["model/encoding.ts", "model/audit-parser.ts"],
+  },
+  {
+    name: "app",
+    // NEW: the whole reachable frontend. Pulls in every component, every
+    // model module and `folder-picker.ts` for the first time — closing that
+    // module's pre-existing blind spot as a free side effect of the split
+    // (S15 plan §5.1.1, §5.1.3).
+    entries: [join(SRC_ROOT, "app.tsx"), join(SRC_ROOT, "state/app-state.ts")],
+    allowedInvokeCommands: new Set([
+      "host_environment",
+      "grant_read_access",
+      "write_export_file",
+      "read_import_file",
+    ]),
+    // `price-export.ts` is the ONLY module in the app that invokes the two
+    // write/read commands; `folder-picker.ts` is the blind spot this graph
+    // exists to close (S15 plan §0.2). If either stops being reachable from
+    // the entries, the allowlist entries above are guarding nothing.
+    mustReach: ["services/price-export.ts", "services/folder-picker.ts", "state/app-state.ts"],
+  },
 ];
 
-describe("US-1.6 read-only guarantee — static analysis over the real module graph", () => {
-  const graph = loadReachableGraph(ENTRY_FILES);
-  const violations = analyse(graph);
+for (const g of GRAPHS) {
+  describe(`US-1.6 read-only guarantee — static analysis over the "${g.name}" graph`, () => {
+    const graph = loadReachableGraph(g.entries);
+    const violations = analyse(graph, g.allowedInvokeCommands);
 
-  it("reaches more than the four entry files (the traversal itself works)", () => {
-    // A sanity floor: if resolution silently stopped working the checks
-    // below would trivially pass over a near-empty graph.
-    expect(graph.size).toBeGreaterThan(6);
-  });
+    it(`reaches more than ${g.entries.length + 2} modules (the traversal itself works)`, () => {
+      // A sanity floor: if resolution silently stopped working the checks
+      // below would trivially pass over a near-empty graph.
+      expect(graph.size).toBeGreaterThan(6);
+    });
 
-  it("no reachable module imports a write API from @tauri-apps/plugin-fs", () => {
-    expect(violations.filter((v) => v.kind === "write-import")).toEqual([]);
-  });
+    it("reaches every module this graph is responsible for", () => {
+      const reached = new Set([...graph.keys()].map((file) => file.slice(SRC_ROOT.length)));
+      const missing = g.mustReach.filter((name) => !reached.has(name));
+      expect(missing).toEqual([]);
+    });
 
-  it("no reachable module uses a namespace or default import of the fs plugin", () => {
-    expect(violations.filter((v) => v.kind === "namespace-import")).toEqual([]);
-  });
+    it("no reachable module imports a write API from @tauri-apps/plugin-fs", () => {
+      expect(violations.filter((v) => v.kind === "write-import")).toEqual([]);
+    });
 
-  it("no reachable module calls .write / .writeText / .truncate on a file handle", () => {
-    expect(violations.filter((v) => v.kind === "write-call")).toEqual([]);
-  });
+    it("no reachable module uses a namespace or default import of the fs plugin", () => {
+      expect(violations.filter((v) => v.kind === "namespace-import")).toEqual([]);
+    });
 
-  it("the scanner graph invokes only host_environment and grant_read_access", () => {
-    expect(violations.filter((v) => v.kind === "invoke-not-allowlisted")).toEqual([]);
-  });
+    it("no reachable module calls .write / .writeText / .truncate on a file handle", () => {
+      expect(violations.filter((v) => v.kind === "write-call")).toEqual([]);
+    });
 
-  it("no reachable module contains a raw plugin:fs write invoke string", () => {
-    expect(violations.filter((v) => v.kind === "raw-write-invoke")).toEqual([]);
+    it(`the "${g.name}" graph invokes only its allowlisted commands`, () => {
+      expect(violations.filter((v) => v.kind === "invoke-not-allowlisted")).toEqual([]);
+    });
+
+    it("no reachable module contains a raw plugin:fs write invoke string", () => {
+      expect(violations.filter((v) => v.kind === "raw-write-invoke")).toEqual([]);
+    });
   });
-});
+}
 
 describe("US-1.6 read-only guarantee — the capability file", () => {
   const capabilityPath = join(SRC_ROOT, "../src-tauri/capabilities/default.json");
@@ -254,9 +332,33 @@ describe("US-1.6 read-only guarantee — the capability file", () => {
     const blanket = new Set(["fs:default", "fs:read-all", "fs:write-all", "fs:scope"]);
     expect(capability.permissions.filter((p) => blanket.has(p))).toEqual([]);
   });
+
+  // S15 plan §5.1.2: an exact pin, not just the write-shaped regex above —
+  // a future session cannot add a write permission under a name the regex
+  // above did not anticipate without this test noticing.
+  it("the fs: permissions are exactly the S7 read set", () => {
+    const fsPermissions = capability.permissions.filter((p) => p.startsWith("fs:"));
+    expect(new Set(fsPermissions)).toEqual(
+      new Set([
+        "fs:allow-exists",
+        "fs:allow-stat",
+        "fs:allow-read-dir",
+        "fs:allow-open",
+        "fs:allow-read",
+        "fs:allow-read-file",
+      ]),
+    );
+  });
+
+  it("the only dialog permissions are open and save", () => {
+    const dialogPermissions = capability.permissions.filter((p) => p.startsWith("dialog:"));
+    expect(new Set(dialogPermissions)).toEqual(new Set(["dialog:allow-open", "dialog:allow-save"]));
+  });
 });
 
 describe("US-1.6 read-only guarantee — the analyser self-check", () => {
+  const scannerAllowlist = GRAPHS[0]!.allowedInvokeCommands;
+
   it("reports exactly three violations for a known-bad source", () => {
     const knownBad = `
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -266,7 +368,7 @@ export async function bad(handle: { write(b: Uint8Array): Promise<number> }) {
   await invoke("fs_delete_everything");
 }
 `;
-    const violations = analyse(new Map([["known-bad.ts", knownBad]]));
+    const violations = analyse(new Map([["known-bad.ts", knownBad]]), scannerAllowlist);
 
     expect(violations).toHaveLength(3);
     expect(violations.map((v) => v.kind).sort()).toEqual(
@@ -283,13 +385,37 @@ export async function bad() {
   await tauriInvoke("fs_delete_everything");
 }
 `;
-    const violations = analyse(new Map([["known-bad-alias.ts", knownBad]]));
+    const violations = analyse(new Map([["known-bad-alias.ts", knownBad]]), scannerAllowlist);
 
     expect(violations).toEqual([
       {
         kind: "invoke-not-allowlisted",
         file: "known-bad-alias.ts",
         detail: "fs_delete_everything",
+      },
+    ]);
+  });
+
+  // S15 plan §5.1.4 control 2, the control that would actually catch a
+  // wrong implementation: a write-command invoke through the scanner
+  // graph's allowlist must fail on that graph, proving the app graph's
+  // wider allowlist did not leak into the scanner's.
+  it("the split did not widen the scanner allowlist to the app graph's commands", () => {
+    const wouldBeAllowedOnAppGraph = `
+export async function exportFromScanner() {
+  await invoke("write_export_file", { path: "x", contents: "y" });
+}
+`;
+    const violations = analyse(
+      new Map([["scan-like.ts", wouldBeAllowedOnAppGraph]]),
+      scannerAllowlist,
+    );
+
+    expect(violations).toEqual([
+      {
+        kind: "invoke-not-allowlisted",
+        file: "scan-like.ts",
+        detail: "write_export_file",
       },
     ]);
   });

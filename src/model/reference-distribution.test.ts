@@ -9,7 +9,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseAuditBytes } from "./audit-parser.js";
+import { DEFAULT_PRICES } from "./default-prices.js";
 import { buildManifestIndex, parseManifestBytes } from "./manifest.js";
+import { PRICE_FIELDS } from "./prices.js";
 import { createProblemCollector } from "./problems.js";
 import { projectKey, resolveSessions, summarizeGaps } from "./project-assignment.js";
 import { buildReport } from "./report.js";
@@ -116,5 +118,19 @@ describe.skipIf(!existsSync(dir))("reference distribution", () => {
     expect(toolCalls).toBe(7504);
     expect(report.sessions.filter((s) => s.toolUses.length > 0)).toHaveLength(135);
     expect(Math.max(...report.sessions.map((s) => s.toolUses.length))).toBe(20);
+
+    // S15 plan §6: with [1m] defaults shipped (Q1), every model actually
+    // seen in this real tree has a COMPLETE default — every one of the five
+    // fields is non-null. Inert as coverage for "a model with no default
+    // gets an empty row" (LEARNINGS: a regression pin computed from real
+    // data cannot prove a guard-rail that is a no-op on that data) — that
+    // property is covered by the synthetic fixture in price-table.test.ts.
+    for (const modelTotal of report.models.models) {
+      const price = DEFAULT_PRICES.get(modelTotal.model);
+      expect(price, `no shipped default for ${modelTotal.model}`).toBeDefined();
+      for (const field of PRICE_FIELDS) {
+        expect(price![field], `${modelTotal.model}.${field}`).not.toBeNull();
+      }
+    }
   });
 });

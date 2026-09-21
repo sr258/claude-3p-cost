@@ -66,7 +66,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S13 | ✅ Date range filter | US-5.1 | S10 |
 | S14 | ✅ Trend over time | US-5.2 | S13 |
 | **Phase 6 — Money** ||||
-| S15 | Price table: storage and editor | US-4.2 | S10 |
+| S15 | ✅ Price table: storage and editor | US-4.2 | S10 |
 | S16 | Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
 | S17 | Budgets | US-6.1, US-6.2 | S13, S15 |
 | **Phase 7 — Output and liveness** ||||
@@ -386,6 +386,8 @@ anything is drawn on it.
 
 ### S15 — Price table: storage and editor
 
+**Status. Done 2026-09-21.** Plan: `docs/plans/S15-price-table.md`.
+
 **Goal.** The user can see and change the prices used for recomputation.
 
 **Scope.** The price table type and persisted store; **the shipped defaults with
@@ -401,6 +403,24 @@ the default.
 **Trap.** Model variant strings are the keys. `claude-opus-5[1m]` and
 `claude-opus-5` are different rows with different prices; never normalise the
 suffix away.
+
+**Note.** Ran deliberately over its sizing budget: the user chose the native
+file dialog over a copy/paste textarea for JSON exchange, which pulled in the
+app's first filesystem *write* — two Rust commands, `dialog:allow-save`, and a
+restructure of the US-1.6 read-only guard into two import graphs with separate
+invoke allowlists. See the plan's §0 for the recorded risk decision. The
+shipped defaults were derived from, and verified against, the reference tree's
+own logged cost; the plan's §1 holds that evidence so no later session has to
+re-derive it. Cache multipliers are 1.25× / 2.0× / 0.1× of input, and `[1m]`
+variants bill at their base model's rates.
+
+**Deferred to S16.** US-4.2's "empty fields mean unknown: affected sessions are
+excluded from the recomputed total and the exclusion is reported". S15 ships the
+representation (`null`, never `0`) and the signal (`PriceRow.isComplete`); there
+is no recomputed total in S15 to exclude from. S16 also inherits a quantified
+discrepancy: web search is billed at $0.01 per request, which is ~0.29% of the
+reference tree's total and is not a per-token price, so it has no column in the
+price table and will otherwise look like a rounding bug.
 
 ### S16 — Dual cost display + transparency
 

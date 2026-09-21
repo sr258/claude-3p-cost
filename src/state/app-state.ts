@@ -27,10 +27,34 @@ import type { Report } from "../model/report-types.js";
 import { buildReport, type SessionSortField, type SortDirection } from "../model/report.js";
 import type { ResolvedSession } from "../model/project-types.js";
 import type { Granularity } from "../model/trend.js";
+import { DEFAULT_PRICES } from "../model/default-prices.js";
+import {
+  buildPriceRows,
+  decodePriceJson,
+  encodePriceJson,
+  resetAll as resetAllOverrides,
+  resetRow as resetRowOverrides,
+  resolvePriceTable,
+  setOverride,
+  type PriceDecode,
+} from "../model/price-table.js";
+import type {
+  PriceField,
+  PriceMicroUsdPerMtok,
+  PriceOverrides,
+  PriceTable,
+} from "../model/prices.js";
 import { discover, type Discovery } from "../services/discovery.js";
 import { createFileSystem, type FileSystem } from "../services/filesystem.js";
 import { pickRootFolders, removeRoot } from "../services/folder-picker.js";
 import { loadStoredLocale, storeLocale } from "../services/locale-store.js";
+import { loadPriceOverrides, storePriceOverrides } from "../services/price-store.js";
+import {
+  loadJson,
+  saveJson,
+  type ExportOutcome,
+  type ImportOutcome,
+} from "../services/price-export.js";
 import { loadManualRoots } from "../services/root-store.js";
 import { scanDiscovery } from "../services/scan.js";
 import { localZoneOffset } from "../services/zone.js";
@@ -384,4 +408,83 @@ export function setTrendGranularity(next: Granularity): void {
 
 export function setTrendOpen(open: boolean): void {
   trendOpen.value = open;
+}
+
+/**
+ * US-4.2's price table (S15 plan §5.4, Q3). A two-chip app-bar view switch
+ * — `view` — not a settings screen (Q3): it is exactly the seed S21 grows
+ * into full settings.
+ */
+export type View = "overview" | "prices";
+
+export const view = signal<View>("overview");
+
+export function setView(next: View): void {
+  view.value = next;
+}
+
+/**
+ * `priceOverrides` is loaded once at module init and never re-read from
+ * storage afterward; every mutator below updates BOTH the signal and the
+ * store together, so they can never drift. `priceTable` is a `computed`
+ * over `DEFAULT_PRICES` (baked in, never fetched — NFR-5) and
+ * `priceOverrides` — S16 reads `priceTable`, never `priceOverrides`
+ * directly (plan §4). `runScan()` never touches either signal, so prices
+ * survive a rescan exactly like every other preference signal here.
+ */
+export const priceOverrides = signal<PriceOverrides>(loadPriceOverrides());
+
+export const priceTable = computed<PriceTable>(() =>
+  resolvePriceTable(DEFAULT_PRICES, priceOverrides.value),
+);
+
+function commitOverrides(next: PriceOverrides): void {
+  priceOverrides.value = next;
+  storePriceOverrides(next);
+}
+
+export function setPrice(
+  model: string,
+  field: PriceField,
+  value: PriceMicroUsdPerMtok | null,
+): void {
+  commitOverrides(setOverride(priceOverrides.value, model, field, value));
+}
+
+export function resetPriceRow(model: string): void {
+  commitOverrides(resetRowOverrides(priceOverrides.value, model));
+}
+
+export function resetAllPrices(): void {
+  commitOverrides(resetAllOverrides());
+}
+
+/**
+ * The pure entry point `importPricesFromFile` feeds (Q4: import REPLACES
+ * the whole override set, never merges) — kept separate from the file I/O
+ * so the replace-semantics logic is testable without any I/O.
+ */
+export function importPrices(text: string): PriceDecode {
+  const decoded = decodePriceJson(text, DEFAULT_PRICES);
+  if (decoded.kind === "ok") {
+    commitOverrides(decoded.overrides);
+  }
+  return decoded;
+}
+
+/**
+ * Builds the export document from the CURRENT report's models (cost order)
+ * plus every default-only model, exactly what `<PriceTableEditor>` renders
+ * — so what a user exports is what they see, collapsed "other models"
+ * section included.
+ */
+export function exportPrices(): Promise<ExportOutcome> {
+  const models = report.value?.models.models ?? [];
+  const rows = buildPriceRows(models, DEFAULT_PRICES, priceOverrides.value);
+  const contents = encodePriceJson(rows);
+  return saveJson("claude3pcost-prices.json", contents);
+}
+
+export async function importPricesFromFile(): Promise<ImportOutcome> {
+  return loadJson();
 }

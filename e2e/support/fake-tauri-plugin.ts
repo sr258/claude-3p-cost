@@ -11,6 +11,17 @@
  *
  * The tree is read at module load from `globalThis.__C3P_E2E_TREE__`,
  * installed by `e2e/support/app.ts` via `addInitScript` before navigation.
+ *
+ * S15 (US-4.2, plan §5.4) amends a standing invariant, deliberately and
+ * loudly: CLAUDE.md used to say "no write-capable export exists in that
+ * module at all." That sentence is now FALSE AS WRITTEN, because
+ * `write_export_file` / `read_import_file` had to become driveable from
+ * Playwright — so it is rewritten, not quietly widened: no export of this
+ * module writes to the FAKE TREE — the read surface (`exists`, `stat`,
+ * `readDir`, `readFile`, `open({read:true})`) is exactly as before — and
+ * `invoke`'s two new branches write only to a separate
+ * `globalThis.__C3P_E2E_SAVED__` sink that no tree reader above ever
+ * consults. Asserted behaviourally in `fake-tauri-plugin.test.ts`.
  */
 
 export interface FakeTree {
@@ -47,6 +58,23 @@ const EMPTY_TREE: FakeTree = Object.freeze({
 function currentTree(): FakeTree {
   const globalTree = (globalThis as Record<string, unknown>).__C3P_E2E_TREE__;
   return (globalTree as FakeTree | undefined) ?? EMPTY_TREE;
+}
+
+/**
+ * `write_export_file` / `read_import_file`'s sink (S15 plan §5.4) — a path
+ * -> contents map, entirely separate from `__C3P_E2E_TREE__`. Lazily
+ * initialised on first use so a spec that never exercises export/import
+ * never needs to install it.
+ */
+function savedSink(): Record<string, string> {
+  const globalRef = globalThis as Record<string, unknown>;
+  const existing = globalRef.__C3P_E2E_SAVED__;
+  if (typeof existing === "object" && existing !== null) {
+    return existing as Record<string, string>;
+  }
+  const created: Record<string, string> = {};
+  globalRef.__C3P_E2E_SAVED__ = created;
+  return created;
 }
 
 /** Every ancestor directory of `path`, shallowest first, excluding `path` itself. */
@@ -192,6 +220,23 @@ export async function invoke<T>(cmd: string, _args?: Record<string, unknown>): P
   }
   if (cmd === "grant_read_access") {
     return 0 as unknown as T;
+  }
+  // S15 (US-4.2): write ONLY to the sink, never to the fake tree (see the
+  // module doc comment's rewritten invariant above). `readSavedSink` is
+  // shared with `read_import_file` below so both go through the same
+  // storage, exactly mirroring the real Rust write-then-read round trip.
+  if (cmd === "write_export_file") {
+    const { path, contents } = (_args ?? {}) as { path: string; contents: string };
+    savedSink()[path] = contents;
+    return undefined as unknown as T;
+  }
+  if (cmd === "read_import_file") {
+    const { path } = (_args ?? {}) as { path: string };
+    const contents = savedSink()[path];
+    if (contents === undefined) {
+      throw new Error("fake-tauri-plugin: read_import_file of a path never written to the sink");
+    }
+    return contents as unknown as T;
   }
   // An unexpected IPC call fails loudly rather than returning `undefined`
   // (plan §6.8). The marker is folded into this always-bundled function body

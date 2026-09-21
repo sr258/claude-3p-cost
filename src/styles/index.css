@@ -862,3 +862,128 @@ body {
 [data-testid="trend-empty"] {
   color: var(--c3p-text-secondary);
 }
+
+/* ─── Price table editor (S15, US-4.2) ───────────────────────────────────── */
+
+.view-switch {
+  margin-left: auto;
+}
+
+.price-table-editor {
+  width: 100%;
+}
+
+.price-table-editor__as-of {
+  color: var(--c3p-text-secondary);
+  font-size: var(--c3p-font-s);
+}
+
+.price-table-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--c3p-space-s);
+  margin: var(--c3p-space-s) 0;
+}
+
+.price-table-editor__toolbar button {
+  font-size: var(--c3p-font-s);
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  color: var(--c3p-text-primary);
+  cursor: pointer;
+}
+
+.price-table-editor__confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--c3p-space-xs);
+  color: var(--c3p-warning-text);
+}
+
+.price-table-editor__status {
+  color: var(--c3p-text-secondary);
+  font-size: var(--c3p-font-s);
+}
+
+.price-table-editor__incomplete {
+  color: var(--c3p-warning-text);
+  font-size: var(--c3p-font-s);
+}
+
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.price-table th,
+.price-table td {
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  text-align: left;
+  border-bottom: 1px solid var(--c3p-border);
+}
+
+.price-table__model {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.price-table__cell {
+  min-width: 6rem;
+}
+
+.price-table__input {
+  width: 100%;
+  font: inherit;
+  padding: var(--c3p-space-xxs) var(--c3p-space-xs);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  color: var(--c3p-text-primary);
+}
+
+/* A left accent bar on an edited cell — always paired with the "geändert"
+   text hint below it, never colour alone (NFR-11). */
+.price-table__input[data-edited="true"] {
+  border-left: 3px solid var(--c3p-primary);
+}
+
+.price-table__input[aria-invalid="true"] {
+  border-color: var(--c3p-error);
+}
+
+.price-table__hint {
+  font-size: var(--c3p-font-xxs);
+  color: var(--c3p-text-secondary);
+}
+
+.price-table__hint--error {
+  color: var(--c3p-error-text);
+}
+
+.price-table__reset-row {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--c3p-font-m);
+  color: var(--c3p-text-secondary);
+}
+
+.price-table__no-default {
+  color: var(--c3p-warning-text);
+  font-size: var(--c3p-font-xs);
+}
+
+.price-table-editor__other-models {
+  margin-top: var(--c3p-space-m);
+}
+
+.price-table-editor__other-models > button {
+  font-size: var(--c3p-font-s);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c3p-text-primary);
+}
