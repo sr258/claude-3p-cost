@@ -49,8 +49,8 @@ export function tDuration(ms: number): string {
   return formatDuration(locale.value, ms);
 }
 
-export function tPercent(ratio: number): string {
-  return formatPercent(locale.value, ratio);
+export function tPercent(ratio: number, options?: Intl.NumberFormatOptions): string {
+  return formatPercent(locale.value, ratio, options);
 }
 
 /** The active-locale `Intl.Collator` comparison, for injecting into `compareSessionRows`. */

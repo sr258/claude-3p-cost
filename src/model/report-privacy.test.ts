@@ -7,10 +7,13 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createAuditAccumulator, parseAuditText } from "./audit-parser.js";
+import { ALL_TIME } from "./date-range.js";
 import { buildManifestIndex, parseManifestText } from "./manifest.js";
 import { createProblemCollector } from "./problems.js";
 import { resolveSession } from "./project-assignment.js";
 import { buildReport } from "./report.js";
+import { buildTrend } from "./trend.js";
+import { utcOffset } from "./time-buckets.js";
 import {
   MANIFEST_ORDINARY_JSON,
   MANIFEST_SENSITIVE_FIELDS_JSON,
@@ -182,5 +185,44 @@ describe("report privacy", () => {
     expect(Object.values(report.excluded).every((v) => typeof v === "number")).toBe(true);
     expect(JSON.stringify(report.range)).not.toMatch(/[/\\]/);
     expect(JSON.stringify(report.excluded)).not.toMatch(/[/\\]/);
+  });
+
+  it("no TrendPoint or TrendSeries field carries a path, an id or free text (S14 plan §6 test 15)", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_SENSITIVE_FIELDS_JSON),
+      basename(MANIFEST_SENSITIVE_FIELDS_JSON),
+      problems,
+    )!;
+    const index = buildManifestIndex([parsed], problems);
+    const accumulator = createAuditAccumulator(parsed.meta.sessionId);
+    accumulator.pushLine(
+      JSON.stringify({
+        type: "result",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        total_cost_usd: 0.5,
+        duration_ms: 1000,
+        duration_api_ms: 900,
+        num_turns: 1,
+        is_error: false,
+        session_id: "11111111-2222-3333-4444-555555555555",
+      }),
+    );
+    const audit = accumulator.finish();
+    const resolved = resolveSession(audit, index, new Map(), problems);
+    const report = buildReport([resolved], problems.problems);
+
+    const series = buildTrend(report.sessions, "day", utcOffset, ALL_TIME);
+    expect(series.points.length).toBeGreaterThan(0);
+    for (const point of series.points) {
+      // Keys are "YYYY-MM" / "YYYY-MM-DD" only.
+      expect(point.key).toMatch(/^\d{4}-\d{2}(-\d{2})?$/);
+      const keys = Object.keys(point);
+      expect(keys).not.toContain("path");
+      expect(keys).not.toContain("cwd");
+      expect(keys).not.toContain("id");
+      expect(JSON.stringify(point)).not.toMatch(/[/\\]/);
+    }
+    expect(JSON.stringify(series.undated)).not.toMatch(/[/\\]/);
   });
 });

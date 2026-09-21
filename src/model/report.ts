@@ -16,15 +16,9 @@ import type {
   ModelBreakdown,
   Report,
   SessionRow,
-  TimeBucket,
 } from "./report-types.js";
-import {
-  dayKey,
-  monthKey,
-  parseTimestamp,
-  utcOffset,
-  type ZoneOffsetResolver,
-} from "./time-buckets.js";
+import { bucketRows } from "./trend.js";
+import { parseTimestamp, utcOffset, type ZoneOffsetResolver } from "./time-buckets.js";
 import {
   createModelAccumulator,
   createTotalsAccumulator,
@@ -37,36 +31,6 @@ export interface ReportOptions {
   readonly zone?: ZoneOffsetResolver;
   /** Defaults to `ALL_TIME` (S13 plan §4.3). */
   readonly range?: DateRange;
-}
-
-interface TimeBucketAccumulator {
-  costMicroUsd: number;
-  requests: number;
-  durationMs: number;
-}
-
-function bucketFor(map: Map<string, TimeBucketAccumulator>, key: string): TimeBucketAccumulator {
-  let bucket = map.get(key);
-  if (bucket === undefined) {
-    bucket = { costMicroUsd: 0, requests: 0, durationMs: 0 };
-    map.set(key, bucket);
-  }
-  return bucket;
-}
-
-function sortedBuckets(map: Map<string, TimeBucketAccumulator>): readonly TimeBucket[] {
-  return Object.freeze(
-    [...map.entries()]
-      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
-      .map(([key, bucket]) =>
-        Object.freeze({
-          key,
-          costMicroUsd: bucket.costMicroUsd,
-          requests: bucket.requests,
-          durationMs: bucket.durationMs,
-        }),
-      ),
-  );
 }
 
 /**
@@ -84,11 +48,7 @@ function compareRequestsByTimestamp(a: RequestRecord, b: RequestRecord): number 
 
 function buildSessionRow(
   session: ResolvedSession,
-  zone: ZoneOffsetResolver,
   range: DateRange,
-  dayMap: Map<string, TimeBucketAccumulator>,
-  monthMap: Map<string, TimeBucketAccumulator>,
-  undated: { requests: number; costMicroUsd: number },
   excludedTotals: { requests: number; costMicroUsd: number; undatedRequests: number },
 ): SessionRow {
   const totalsAcc = createTotalsAccumulator();
@@ -125,21 +85,6 @@ function buildSessionRow(
       if (lastTimestamp === null || request.timestamp > lastTimestamp) {
         lastTimestamp = request.timestamp;
       }
-    }
-
-    if (epochMs === null) {
-      undated.requests += 1;
-      undated.costMicroUsd += request.costMicroUsd;
-    } else {
-      const day = bucketFor(dayMap, dayKey(epochMs, zone));
-      day.costMicroUsd += request.costMicroUsd;
-      day.requests += 1;
-      day.durationMs += request.durationMs;
-
-      const month = bucketFor(monthMap, monthKey(epochMs, zone));
-      month.costMicroUsd += request.costMicroUsd;
-      month.requests += 1;
-      month.durationMs += request.durationMs;
     }
   }
 
@@ -255,21 +200,24 @@ export function buildReport(
   const zone = options?.zone ?? utcOffset;
   const range = options?.range ?? ALL_TIME;
 
-  const dayMap = new Map<string, TimeBucketAccumulator>();
-  const monthMap = new Map<string, TimeBucketAccumulator>();
-  const undated: { requests: number; costMicroUsd: number } = {
-    requests: 0,
-    costMicroUsd: 0,
-  };
   const excludedTotals: { requests: number; costMicroUsd: number; undatedRequests: number } = {
     requests: 0,
     costMicroUsd: 0,
     undatedRequests: 0,
   };
 
-  const allSessionRows = sessions.map((session) =>
-    buildSessionRow(session, zone, range, dayMap, monthMap, undated, excludedTotals),
-  );
+  const allSessionRows = sessions.map((session) => buildSessionRow(session, range, excludedTotals));
+
+  // Q9 (S14 plan §4.2): the buckets are computed from `allSessionRows` —
+  // BEFORE the zero-request drop below — using the one bucketing rule
+  // `bucketRows` also gives S14's trend series. A dropped row has zero
+  // surviving requests by construction (that IS the drop criterion), so it
+  // contributes nothing to any bucket either way; the ordering is pinned
+  // here, not because today's answer would differ, but so a future change to
+  // the drop rule cannot silently move the buckets without a test noticing
+  // (`report.test.ts` test 14).
+  const { buckets: dayBuckets, undated } = bucketRows(allSessionRows, "day", zone);
+  const { buckets: monthBuckets } = bucketRows(allSessionRows, "month", zone);
 
   // Q8: under a bounded range, a session with zero in-range requests is
   // dropped from the report entirely — from `sessions` and from BOTH
@@ -325,9 +273,9 @@ export function buildReport(
     folderGroups,
     totals: sessionRows.length === 0 ? EMPTY_TOTALS : totalsAcc.value,
     models: sessionRows.length === 0 ? EMPTY_MODEL_BREAKDOWN : modelAcc.value,
-    byDay: sortedBuckets(dayMap),
-    byMonth: sortedBuckets(monthMap),
-    undated: Object.freeze({ requests: undated.requests, costMicroUsd: undated.costMicroUsd }),
+    byDay: dayBuckets,
+    byMonth: monthBuckets,
+    undated,
     // Q10: a gap is a property of the data on disk, not of the view — always
     // the FULL, unfiltered session set, never `sessionRows`.
     gaps: summarizeGaps(sessions),

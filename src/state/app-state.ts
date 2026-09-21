@@ -26,6 +26,7 @@ import type { Problem } from "../model/problems.js";
 import type { Report } from "../model/report-types.js";
 import { buildReport, type SessionSortField, type SortDirection } from "../model/report.js";
 import type { ResolvedSession } from "../model/project-types.js";
+import type { Granularity } from "../model/trend.js";
 import { discover, type Discovery } from "../services/discovery.js";
 import { createFileSystem, type FileSystem } from "../services/filesystem.js";
 import { pickRootFolders, removeRoot } from "../services/folder-picker.js";
@@ -366,4 +367,21 @@ export function setSessionSort(field: SessionSortField): void {
     sessionSortField.value = field;
     sessionSortDirection.value = DEFAULT_SORT_DIRECTION[field];
   }
+}
+
+/**
+ * US-5.2's trend controls (S14 plan §2 Q3, Q9). Signals only — nothing is
+ * written to localStorage; persistence belongs to the settings screen
+ * (S15+/S21), exactly as with `grouping` (S10) and the range (S13). Neither
+ * signal is touched by `runScan()`, so both survive a rescan.
+ */
+export const trendGranularity = signal<Granularity>("month"); // Q3: month by default
+export const trendOpen = signal<boolean>(true);
+
+export function setTrendGranularity(next: Granularity): void {
+  trendGranularity.value = next;
+}
+
+export function setTrendOpen(open: boolean): void {
+  trendOpen.value = open;
 }

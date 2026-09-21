@@ -751,3 +751,114 @@ body {
   color: var(--c3p-warning-text);
   font-size: var(--c3p-font-xs);
 }
+
+/* ─── Trend section (S14, US-5.2) ─────────────────────────────────────────── */
+
+.trend-section {
+  width: 100%;
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-m);
+  background: var(--c3p-surface-raised);
+  padding: var(--c3p-space-m);
+  font-size: var(--c3p-font-s);
+}
+
+.trend-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trend-section__heading {
+  font-size: var(--c3p-font-m);
+}
+
+.trend-section__disclosure {
+  font-size: var(--c3p-font-s);
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  color: var(--c3p-text-primary);
+  cursor: pointer;
+}
+
+.trend-section__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--c3p-space-m);
+  margin: var(--c3p-space-m) 0;
+}
+
+.trend-granularity {
+  display: flex;
+  gap: var(--c3p-space-xs);
+}
+
+.trend-granularity button {
+  font-size: var(--c3p-font-s);
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  color: var(--c3p-text-primary);
+  cursor: pointer;
+}
+
+.trend-granularity button[aria-checked="true"] {
+  background: var(--c3p-primary-10);
+  border-color: var(--c3p-primary);
+  color: var(--c3p-primary-text);
+}
+
+.trend-section__scope {
+  display: flex;
+  align-items: center;
+  gap: var(--c3p-space-s);
+  color: var(--c3p-text-secondary);
+}
+
+.trend-section__scope button {
+  font-size: var(--c3p-font-xs);
+  padding: 0 var(--c3p-space-xs);
+  border: 1px solid var(--c3p-border);
+  border-radius: var(--c3p-radius-s);
+  background: var(--c3p-surface);
+  cursor: pointer;
+}
+
+.trend-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.trend-table th,
+.trend-table td {
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  text-align: left;
+}
+
+.trend-table th:not(:first-child),
+.trend-table td:not(:first-child) {
+  text-align: right;
+}
+
+/* Zero-filled rows are distinguished by content ("0,00 USD") and by
+   data-zero, never by colour alone (NFR-11); this dims them slightly as a
+   SECONDARY cue only. */
+.trend-table tr[data-zero="true"] {
+  color: var(--c3p-text-secondary);
+}
+
+[data-testid="trend-undated"],
+[data-testid="trend-unfilled"] {
+  margin-top: var(--c3p-space-s);
+  color: var(--c3p-text-secondary);
+  font-size: var(--c3p-font-xs);
+}
+
+[data-testid="trend-empty"] {
+  color: var(--c3p-text-secondary);
+}

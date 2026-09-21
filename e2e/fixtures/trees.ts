@@ -911,3 +911,116 @@ export const dateRangeTree: FakeTree = Object.freeze({
   }),
   hostEnvironment: HOST_ENVIRONMENT,
 });
+
+// ─── trendTree (S14, US-5.2) ─────────────────────────────────────────────
+// Every value invented (plan §0.2 style); nothing copied from the reference
+// tree. Two projects so the scope switch is observable; a deliberate
+// two-day gap (2026-04-03/04) in the middle of project A's activity; a
+// bucket in a second calendar month (2026-05) so the granularity switch
+// changes the KEY SET, not just the row count. Every timestamp is noon UTC
+// (S14 plan §4.8) so the expected day keys hold under any realistic host
+// offset -- the e2e run uses the HOST zone via `localZoneOffset`.
+
+const TREND_ROOT = "C:/Users/e2e/AppData/Local/Claude-3p/local-agent-mode-sessions";
+const TREND_PROFILE = `${TREND_ROOT}/acct-1/profile-1`;
+
+export const TREND_SPACE_ID = "space-trend-a";
+export const TREND_OTHER_SPACE_ID = "space-trend-b";
+export const TREND_GAP_DAY_KEY = "2026-04-03";
+
+/** Sum of every request across both projects, unfiltered. */
+export const TREND_TOTAL_USD = 105.0;
+/** Sum of project A's requests only (the scoped total). */
+export const TREND_SCOPED_TOTAL_USD = 100.0;
+/** The two calendar months present in the data, key ascending. */
+export const TREND_MONTH_KEYS = ["2026-04", "2026-05"] as const;
+
+const TREND_A1_SESSION_ID = "trndaaa1";
+const TREND_A2_SESSION_ID = "trndaaa2";
+const TREND_A3_SESSION_ID = "trndaaa3";
+const TREND_A4_SESSION_ID = "trndaaa4";
+const TREND_B1_SESSION_ID = "trndbbb1";
+
+function trendAudit(fields: {
+  readonly timestamp: string;
+  readonly totalCostUsd: number;
+  readonly sessionId: string;
+}): string {
+  return [
+    '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+    '{"type":"command_lifecycle","state":"queued"}',
+    '{"type":"command_lifecycle","state":"started"}',
+    resultLine({
+      timestamp: fields.timestamp,
+      totalCostUsd: fields.totalCostUsd,
+      durationMs: 2_000,
+      durationApiMs: 1_800,
+      numTurns: 1,
+      sessionId: `${fields.sessionId}-uuid`,
+    }),
+    '{"type":"command_lifecycle","state":"completed"}',
+    "",
+  ].join("\n");
+}
+
+export const trendTree: FakeTree = Object.freeze({
+  directories: Object.freeze([]),
+  files: Object.freeze({
+    [`${TREND_PROFILE}/spaces.json`]: JSON.stringify([
+      { id: TREND_SPACE_ID, name: "Trend Project A" },
+      { id: TREND_OTHER_SPACE_ID, name: "Trend Project B" },
+    ]),
+    [`${TREND_PROFILE}/local_${TREND_A1_SESSION_ID}-manifest-uuid.json`]: JSON.stringify({
+      title: "A: April 1",
+      spaceId: TREND_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${TREND_PROFILE}/local_${TREND_A2_SESSION_ID}-manifest-uuid.json`]: JSON.stringify({
+      title: "A: April 2",
+      spaceId: TREND_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${TREND_PROFILE}/local_${TREND_A3_SESSION_ID}-manifest-uuid.json`]: JSON.stringify({
+      title: "A: April 5 (after the gap)",
+      spaceId: TREND_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${TREND_PROFILE}/local_${TREND_A4_SESSION_ID}-manifest-uuid.json`]: JSON.stringify({
+      title: "A: May 1",
+      spaceId: TREND_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${TREND_PROFILE}/local_${TREND_B1_SESSION_ID}-manifest-uuid.json`]: JSON.stringify({
+      title: "B: April 10",
+      spaceId: TREND_OTHER_SPACE_ID,
+      model: "claude-sonnet-5",
+    }),
+    [`${TREND_PROFILE}/${TREND_A1_SESSION_ID}/audit.jsonl`]: trendAudit({
+      timestamp: "2026-04-01T12:00:00.000Z",
+      totalCostUsd: 10.0,
+      sessionId: TREND_A1_SESSION_ID,
+    }),
+    [`${TREND_PROFILE}/${TREND_A2_SESSION_ID}/audit.jsonl`]: trendAudit({
+      timestamp: "2026-04-02T12:00:00.000Z",
+      totalCostUsd: 20.0,
+      sessionId: TREND_A2_SESSION_ID,
+    }),
+    // 2026-04-03 and 2026-04-04 are the deliberate gap: no session touches them.
+    [`${TREND_PROFILE}/${TREND_A3_SESSION_ID}/audit.jsonl`]: trendAudit({
+      timestamp: "2026-04-05T12:00:00.000Z",
+      totalCostUsd: 30.0,
+      sessionId: TREND_A3_SESSION_ID,
+    }),
+    [`${TREND_PROFILE}/${TREND_A4_SESSION_ID}/audit.jsonl`]: trendAudit({
+      timestamp: "2026-05-01T12:00:00.000Z",
+      totalCostUsd: 40.0,
+      sessionId: TREND_A4_SESSION_ID,
+    }),
+    [`${TREND_PROFILE}/${TREND_B1_SESSION_ID}/audit.jsonl`]: trendAudit({
+      timestamp: "2026-04-10T12:00:00.000Z",
+      totalCostUsd: 5.0,
+      sessionId: TREND_B1_SESSION_ID,
+    }),
+  }),
+  hostEnvironment: HOST_ENVIRONMENT,
+});

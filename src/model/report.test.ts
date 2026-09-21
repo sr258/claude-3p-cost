@@ -814,4 +814,72 @@ describe("buildReport", () => {
       expect(report.byDay.map((b) => b.costMicroUsd)).toEqual([1_000_000, 2_000_000]);
     });
   });
+
+  describe("byDay/byMonth via bucketRows (S14 plan §2 Q9, §6)", () => {
+    it("byDay and byMonth still match hand-pinned bucket values after the buildTrend refactor", () => {
+      // Hand-computed expectations, NOT an equality against `bucketRows`
+      // (LEARNINGS: a "sums to N" invariant / self-equality is a tautology).
+      const sessions = [
+        makeSession("s1", [
+          makeRequest({ timestamp: "2026-01-05T10:00:00.000Z", costMicroUsd: 1_000 }),
+          makeRequest({ timestamp: "2026-01-05T20:00:00.000Z", costMicroUsd: 2_000 }),
+          makeRequest({ timestamp: "2026-02-01T00:00:00.000Z", costMicroUsd: 5_000 }),
+        ]),
+      ];
+      const report = buildReport(sessions, []);
+      expect(report.byDay).toEqual([
+        expect.objectContaining({ key: "2026-01-05", costMicroUsd: 3_000, requests: 2 }),
+        expect.objectContaining({ key: "2026-02-01", costMicroUsd: 5_000, requests: 1 }),
+      ]);
+      expect(report.byMonth).toEqual([
+        expect.objectContaining({ key: "2026-01", costMicroUsd: 3_000, requests: 2 }),
+        expect.objectContaining({ key: "2026-02", costMicroUsd: 5_000, requests: 1 }),
+      ]);
+    });
+
+    // NOTE (review, S14): the plan's test 14 was "byDay is computed before the
+    // bounded-range zero-request drop". That ordering is NOT observable — the
+    // drop criterion IS `totals.requests === 0`, which is exactly
+    // `SessionRow.requests.length === 0`, so a dropped row contributes nothing
+    // to any bucket under either ordering and no fixture can separate them.
+    // The title below says what this test actually guards; the ordering itself
+    // is documented in `buildReport` and only becomes testable if the drop
+    // rule ever starts dropping rows that still carry requests.
+    it("byDay buckets only range-surviving requests, never the session's unfiltered audit records", () => {
+      // A session whose ONLY request falls outside the bounded range is
+      // dropped entirely from `report.sessions` (totals.requests === 0).
+      // `bucketRows` is called on the pre-drop row array (S14 plan §4.2), and
+      // that row's `SessionRow.requests` is already empty by the time it
+      // gets there -- the per-request filter in `buildSessionRow` runs
+      // first, so the excluded request's day can never appear in `byDay`
+      // regardless of drop ordering. A wrong implementation that instead
+      // bucketed from the session's UNFILTERED `audit.requests` (skipping
+      // the per-request range filter) would leak the excluded request's day
+      // into `byDay` -- that is what this fixture and assertion catch.
+      const marchRange: DateRange = {
+        fromMs: Date.parse("2026-03-01T00:00:00.000Z"),
+        toMs: Date.parse("2026-04-01T00:00:00.000Z"),
+      };
+      const sessions = [
+        makeSession(
+          "survives",
+          [makeRequest({ timestamp: "2026-03-10T00:00:00.000Z", costMicroUsd: 100 })],
+          { project: { kind: "named", spaceId: "p1", name: "One" } },
+        ),
+        makeSession(
+          "dropped",
+          [makeRequest({ timestamp: "2026-01-01T00:00:00.000Z", costMicroUsd: 999 })],
+          { project: { kind: "named", spaceId: "p2", name: "Two" } },
+        ),
+      ];
+      const report = buildReport(sessions, [], { range: marchRange });
+
+      expect(report.sessions.map((s) => s.sessionId)).toEqual(["survives"]);
+      expect(report.byDay).toEqual([
+        expect.objectContaining({ key: "2026-03-10", costMicroUsd: 100, requests: 1 }),
+      ]);
+      // The dropped session's January request must never leak into byDay.
+      expect(report.byDay.map((b) => b.key)).not.toContain("2026-01-01");
+    });
+  });
 });

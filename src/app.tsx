@@ -33,8 +33,10 @@ import { GroupingToggle } from "./components/grouping-toggle.js";
 import { ModelPanel, type ModelScope } from "./components/model-panel.js";
 import { OverviewTable } from "./components/overview-table.js";
 import { StatusBar } from "./components/status-bar.js";
+import { TrendSection } from "./components/trend-section.js";
 import { dayStringsOf, isAllTime } from "./model/date-range.js";
 import { findGroup } from "./model/report.js";
+import { buildTrend } from "./model/trend.js";
 import { localZoneOffset } from "./services/zone.js";
 import {
   activeRange,
@@ -58,9 +60,13 @@ import {
   setModelPanelOpen,
   setRangePreset,
   setSessionSort,
+  setTrendGranularity,
+  setTrendOpen,
   toggleGroup,
   toggleGroupScope,
   toggleSession,
+  trendGranularity,
+  trendOpen,
 } from "./state/app-state.js";
 
 export function App() {
@@ -94,6 +100,18 @@ export function App() {
     currentPreset === "custom"
       ? { from: customFromDay.value, to: customToDay.value }
       : dayStringsOf(activeRange.value, localZoneOffset);
+
+  // US-5.2 (S14): the trend reuses the SAME scope as ModelPanel (S14 plan §2
+  // Q2) — the group-row selection, never a second scope concept — and needs
+  // no rescan: it is derived from rows the report already holds (NFR-2).
+  const trendRows = currentReport
+    ? selectedGroup
+      ? selectedGroup.sessions
+      : currentReport.sessions
+    : [];
+  const trendSeries = currentReport
+    ? buildTrend(trendRows, trendGranularity.value, localZoneOffset, currentReport.range)
+    : null;
 
   return (
     <main class="app-shell" data-testid="app-shell">
@@ -167,6 +185,17 @@ export function App() {
               />
             )}
           </div>
+          {trendSeries && (
+            <TrendSection
+              series={trendSeries}
+              granularity={trendGranularity.value}
+              scope={scope}
+              open={trendOpen.value}
+              onGranularity={setTrendGranularity}
+              onToggleOpen={() => setTrendOpen(!trendOpen.value)}
+              onResetScope={selectedGroup ? () => clearGroupScope(currentGrouping) : null}
+            />
+          )}
         </>
       ) : (
         <EmptyState />

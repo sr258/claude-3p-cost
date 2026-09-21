@@ -89,8 +89,16 @@ export function formatCurrency(locale: Locale, value: number, currency = "USD"):
  * `localeCompare` is the model layer's back door to i18n; the same rule
  * applies to any other `Intl` call).
  */
-export function formatPercent(locale: Locale, ratio: number): string {
-  return getNumberFormatter(locale, { style: "percent", maximumFractionDigits: 1 }).format(ratio);
+export function formatPercent(
+  locale: Locale,
+  ratio: number,
+  options?: Intl.NumberFormatOptions,
+): string {
+  return getNumberFormatter(locale, {
+    style: "percent",
+    maximumFractionDigits: 1,
+    ...options,
+  }).format(ratio);
 }
 
 export function formatDate(

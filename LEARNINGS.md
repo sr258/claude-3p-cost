@@ -9,6 +9,33 @@ Newest entry first.
 
 ---
 
+- **A "computed before X" ordering guard rail is only testable if X can
+  discard something the computation would have used.** Where the discard
+  criterion is definitionally the same predicate as "this row contributes
+  nothing", both orderings agree on every possible fixture and no test can
+  separate them. Ask whether the two orderings are separable by any input at
+  all before asking for a test that pins one; if they are not, the honest
+  output is a comment in the implementation plus a test named for the property
+  it really guards — never a test whose title claims the ordering.
+- **`String(n)` inside a `t()` placeholder passes lint, type-check and the
+  whole suite, and silently breaks NFR-7 in German only.** The placeholder type
+  is `string`, so the compiler cannot help, and nothing enforces the `tNumber(n)`
+  convention the components otherwise follow; the defect shows up as `1100`
+  where `1.100` belongs, and only in one locale. Grep for `String(` under
+  `src/components/` whenever a session adds a count-style key.
+- **`localZoneOffset` in an end-to-end test means the CI machine's zone, not a
+  fixed one.** E2E fixture timestamps must therefore sit at noon UTC, where no
+  plausible offset moves them across a day boundary, and every zone-sensitive
+  assertion belongs in a unit test with an injected resolver instead. This is
+  the general rule for any code that buckets by time.
+- **Extend the existing formatter in `src/i18n/format.ts` rather than adding a
+  sibling.** `tNumber`/`formatNumber` already took an
+  `Intl.NumberFormatOptions` passthrough, so giving `formatPercent`/`tPercent`
+  the same shape (defaults first, `...options` last) is additive, leaves every
+  call site untouched, and avoids both a duplicate formatter and a hand-built
+  sign prefix — which is the U+00A0 and sign-glyph trap in another disguise.
+  Check the sibling formatters before assuming a plan's file list fixes the
+  file's shape.
 - **A negative control that fails to fail is not automatically a plan error —
   ask what the missing test was *for* before concluding the reference was
   merely mis-numbered.** A control predicting two failures produced one, and

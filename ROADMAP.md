@@ -64,7 +64,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S11 | ✅ Session detail: cost drivers | US-3.1 | S10 |
 | S12 | ✅ Tool usage per session | US-3.2 | S11 |
 | S13 | ✅ Date range filter | US-5.1 | S10 |
-| S14 | Trend over time | US-5.2 | S13 |
+| S14 | ✅ Trend over time | US-5.2 | S13 |
 | **Phase 6 — Money** ||||
 | S15 | Price table: storage and editor | US-4.2 | S10 |
 | S16 | Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
@@ -370,6 +370,8 @@ end is the interesting case.
 wrong monthly totals.
 
 ### S14 — Trend over time
+
+**Status. Done 2026-09-21.** Plan: `docs/plans/S14-trend-over-time.md`.
 
 **Scope.** Cost per day and per calendar month as tables; scope selectable
 between all projects and one project; days without activity rendered as zero so
