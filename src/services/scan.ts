@@ -4,6 +4,7 @@
  * written here.
  */
 import { parseAuditLines } from "../model/audit-parser.js";
+import type { DateRange } from "../model/date-range.js";
 import { pathBasename } from "../model/paths.js";
 import { buildManifestIndex, parseManifestBytes } from "../model/manifest.js";
 import { createProblemCollector, MAX_PROBLEMS_PER_SCOPE, type Problem } from "../model/problems.js";
@@ -18,11 +19,20 @@ import type { FileSystem } from "./filesystem.js";
 
 export interface ScanOptions {
   readonly zone?: ZoneOffsetResolver; // defaults to utcOffset, as S5
+  /** S13 plan §4.5: threaded into BOTH buildReport calls below. Defaults to ALL_TIME (buildReport's own default). */
+  readonly range?: DateRange;
   readonly onProgress?: (done: number, total: number) => void;
   /** NFR-2: an interim Report from the sessions parsed so far. */
   readonly onPartial?: (report: Report) => void;
   /** Minimum ms between onPartial emissions. Default 250. */
   readonly partialIntervalMs?: number;
+}
+
+export interface ScanResult {
+  readonly report: Report;
+  /** Retained so a filter change rebuilds without re-reading a file (S13 plan §2 Q1). */
+  readonly sessions: readonly ResolvedSession[];
+  readonly problems: readonly Problem[];
 }
 
 const DEFAULT_PARTIAL_INTERVAL_MS = 250;
@@ -35,8 +45,9 @@ export async function scanDiscovery(
   fs: FileSystem,
   discovery: Discovery,
   options?: ScanOptions,
-): Promise<Report> {
+): Promise<ScanResult> {
   const zone = options?.zone ?? utcOffset;
+  const range = options?.range;
   const problems = createProblemCollector();
   for (const problem of discovery.problems) {
     problems.add(problem);
@@ -110,11 +121,15 @@ export async function scanDiscovery(
     options?.onProgress?.(done, total);
 
     if (options?.onPartial && Date.now() - lastPartialAt >= partialIntervalMs) {
-      options.onPartial(buildReport(resolved, problems.problems, { zone }));
+      options.onPartial(buildReport(resolved, problems.problems, { zone, range }));
       lastPartialAt = Date.now();
       await yieldToEventLoop();
     }
   }
 
-  return buildReport(resolved, problems.problems, { zone });
+  return {
+    report: buildReport(resolved, problems.problems, { zone, range }),
+    sessions: Object.freeze([...resolved]),
+    problems: problems.problems,
+  };
 }

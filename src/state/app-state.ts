@@ -11,17 +11,28 @@
  * single, tested definition of the OS-locale rule. Duplicating that rule here
  * would leave the shipped copy untested and free to drift from NFR-7.
  */
-import { effect, signal } from "@preact/signals";
+import { computed, effect, signal } from "@preact/signals";
 import { detectLocale } from "../i18n/detect.js";
 import type { Locale } from "../i18n/types.js";
+import {
+  ALL_TIME,
+  isValidRange,
+  rangeFromDayStrings,
+  resolvePreset,
+  type DateRange,
+  type RangePresetId,
+} from "../model/date-range.js";
+import type { Problem } from "../model/problems.js";
 import type { Report } from "../model/report-types.js";
-import type { SessionSortField, SortDirection } from "../model/report.js";
+import { buildReport, type SessionSortField, type SortDirection } from "../model/report.js";
+import type { ResolvedSession } from "../model/project-types.js";
 import { discover, type Discovery } from "../services/discovery.js";
 import { createFileSystem, type FileSystem } from "../services/filesystem.js";
 import { pickRootFolders, removeRoot } from "../services/folder-picker.js";
 import { loadStoredLocale, storeLocale } from "../services/locale-store.js";
 import { loadManualRoots } from "../services/root-store.js";
 import { scanDiscovery } from "../services/scan.js";
+import { localZoneOffset } from "../services/zone.js";
 
 function detectInitialLocale(): Locale {
   const stored = loadStoredLocale();
@@ -62,6 +73,75 @@ export const pickMessage = signal<"none" | "no-session-data" | "failed">("none")
 /** Epoch ms of the last SUCCESSFUL scan. Null before the first one. */
 export const lastScanAt = signal<number | null>(null);
 
+/**
+ * US-5.1's date range filter (S13 plan §4.1, §4.7). Module scope, deliberately
+ * NOT a signal: never rendered, purely the input to a rebuild. A signal would
+ * invite a component to read it directly, bypassing `buildReport`.
+ */
+let scanInput: { sessions: readonly ResolvedSession[]; problems: readonly Problem[] } | null = null;
+
+export const rangePreset = signal<RangePresetId>("all"); // Q13: "Alles" on start
+export const customFromDay = signal<string | null>(null);
+export const customToDay = signal<string | null>(null);
+
+/**
+ * The last range `activeRange` resolved to something valid (Q15). Kept in a
+ * plain variable, not a signal — `activeRange` mutates it as a caching side
+ * effect on every recomputation, which would be surprising to observe as a
+ * signal in its own right.
+ */
+let lastValidRange: DateRange = ALL_TIME;
+
+function resolveCurrentRange(): DateRange {
+  if (rangePreset.value === "custom") {
+    return rangeFromDayStrings(customFromDay.value, customToDay.value, localZoneOffset);
+  }
+  return resolvePreset(rangePreset.value, Date.now(), localZoneOffset);
+}
+
+/** True while the custom from/to pair is invalid (Q15) — "from" after "to". */
+export const rangeInvalid = computed<boolean>(() => !isValidRange(resolveCurrentRange()));
+
+/** The resolved range, or the last valid one when the custom pair is invalid (Q15). */
+export const activeRange = computed<DateRange>(() => {
+  const candidate = resolveCurrentRange();
+  if (isValidRange(candidate)) {
+    lastValidRange = candidate;
+    return candidate;
+  }
+  return lastValidRange;
+});
+
+/** Re-runs buildReport from scanInput. No I/O. No-op before the first scan. */
+function rebuildReport(): void {
+  if (scanInput === null) {
+    return;
+  }
+  report.value = buildReport(scanInput.sessions, scanInput.problems, {
+    zone: localZoneOffset,
+    range: activeRange.value,
+  });
+}
+
+export function setRangePreset(id: RangePresetId): void {
+  rangePreset.value = id;
+  rebuildReport();
+}
+
+export function setCustomDays(from: string | null, to: string | null): void {
+  customFromDay.value = from;
+  customToDay.value = to;
+  rebuildReport();
+}
+
+/** Back to "all" (Q13's default), discarding any custom from/to pair. */
+export function clearRange(): void {
+  rangePreset.value = "all";
+  customFromDay.value = null;
+  customToDay.value = null;
+  rebuildReport();
+}
+
 let cachedFs: Promise<FileSystem> | null = null;
 
 function getFileSystem(): Promise<FileSystem> {
@@ -82,18 +162,26 @@ function invalidateFileSystemCache(): void {
   cachedFs = null;
 }
 
+/**
+ * Never touches `rangePreset` / `customFromDay` / `customToDay` — that is
+ * what makes the active period survive a rescan, the same property
+ * expansion, sort, scope and panel visibility already have (S13 plan §4.7).
+ */
 export async function runScan(): Promise<void> {
   scanState.value = "scanning";
   try {
     const fs = await getFileSystem();
     const foundDiscovery = await discover(fs);
     discovery.value = foundDiscovery;
-    const foundReport = await scanDiscovery(fs, foundDiscovery, {
+    const result = await scanDiscovery(fs, foundDiscovery, {
+      zone: localZoneOffset,
+      range: activeRange.value,
       onPartial: (partial) => {
         report.value = partial;
       },
     });
-    report.value = foundReport;
+    scanInput = { sessions: result.sessions, problems: result.problems };
+    report.value = result.report;
     scanState.value = "done";
     lastScanAt.value = Date.now();
   } catch {

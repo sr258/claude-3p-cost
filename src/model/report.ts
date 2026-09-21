@@ -4,6 +4,7 @@
  * this file except `costShare`'s ratio — see plan §2 Q9 and §6.
  */
 import type { RequestRecord } from "./audit-types.js";
+import { ALL_TIME, containsInstant, isAllTime, type DateRange } from "./date-range.js";
 import type { Problem } from "./problems.js";
 import { folderKey, folderRefOf } from "./folder-grouping.js";
 import { projectKey, summarizeGaps } from "./project-assignment.js";
@@ -34,6 +35,8 @@ import {
 export interface ReportOptions {
   /** Defaults to `utcOffset`. See plan §2 Q1. */
   readonly zone?: ZoneOffsetResolver;
+  /** Defaults to `ALL_TIME` (S13 plan §4.3). */
+  readonly range?: DateRange;
 }
 
 interface TimeBucketAccumulator {
@@ -82,18 +85,38 @@ function compareRequestsByTimestamp(a: RequestRecord, b: RequestRecord): number 
 function buildSessionRow(
   session: ResolvedSession,
   zone: ZoneOffsetResolver,
+  range: DateRange,
   dayMap: Map<string, TimeBucketAccumulator>,
   monthMap: Map<string, TimeBucketAccumulator>,
   undated: { requests: number; costMicroUsd: number },
+  excludedTotals: { requests: number; costMicroUsd: number; undatedRequests: number },
 ): SessionRow {
   const totalsAcc = createTotalsAccumulator();
   const modelAcc = createModelAccumulator();
   let firstTimestamp: string | null = null;
   let lastTimestamp: string | null = null;
+  let excludedRequests = 0;
+  const survivingRequests: RequestRecord[] = [];
 
   for (const request of session.audit.requests) {
+    // The ONE filtering point (S13 plan §4.3): a request whose `result`
+    // timestamp falls outside the active range contributes nothing below.
+    // `parseTimestamp` is hoisted here so it is parsed once, not twice — it
+    // used to be called again further down for bucketing.
+    const epochMs = parseTimestamp(request.timestamp);
+    if (!containsInstant(epochMs, range)) {
+      excludedRequests += 1;
+      excludedTotals.requests += 1;
+      excludedTotals.costMicroUsd += request.costMicroUsd;
+      if (epochMs === null) {
+        excludedTotals.undatedRequests += 1;
+      }
+      continue;
+    }
+
     totalsAcc.add(request);
     modelAcc.add(request);
+    survivingRequests.push(request);
 
     if (request.timestamp !== null) {
       if (firstTimestamp === null || request.timestamp < firstTimestamp) {
@@ -104,7 +127,6 @@ function buildSessionRow(
       }
     }
 
-    const epochMs = parseTimestamp(request.timestamp);
     if (epochMs === null) {
       undated.requests += 1;
       undated.costMicroUsd += request.costMicroUsd;
@@ -121,6 +143,8 @@ function buildSessionRow(
     }
   }
 
+  const totals = totalsAcc.value;
+
   return Object.freeze({
     sessionId: session.audit.sessionId,
     sourceId: session.audit.sourceId,
@@ -135,10 +159,12 @@ function buildSessionRow(
     firstTimestamp,
     lastTimestamp,
     lastActivityAt: session.meta?.lastActivityAt ?? null,
-    totals: totalsAcc.value,
+    totals,
     models: modelAcc.value,
-    requests: Object.freeze([...session.audit.requests].sort(compareRequestsByTimestamp)),
+    requests: Object.freeze([...survivingRequests].sort(compareRequestsByTimestamp)),
     toolUses: session.audit.toolUses,
+    excludedRequests,
+    isPartial: excludedRequests > 0 && totals.requests > 0,
   });
 }
 
@@ -188,9 +214,13 @@ function groupSessions(
     );
     const totalsAcc = createTotalsAccumulator();
     const modelAcc = createModelAccumulator();
+    let partialSessions = 0;
     for (const session of sortedSessions) {
       totalsAcc.merge(session.totals);
       modelAcc.merge(session.models);
+      if (session.isPartial) {
+        partialSessions += 1;
+      }
     }
     result.push(
       Object.freeze({
@@ -200,6 +230,7 @@ function groupSessions(
         sessionCount: sortedSessions.length,
         totals: totalsAcc.value,
         models: modelAcc.value,
+        partialSessions,
       }),
     );
   }
@@ -211,9 +242,10 @@ function groupSessions(
 }
 
 /**
- * Pure, O(requests), and frozen all the way down. S13 will add an optional
- * per-request predicate here; the loop is already request-granular so that
- * it can.
+ * Pure, O(requests), and frozen all the way down. `options.range` (S13 plan
+ * §4.3) is the ONE filtering point in the whole app: `buildSessionRow`'s
+ * per-request loop already was request-granular, so filtering an individual
+ * request by its `result` timestamp needed no restructuring here.
  */
 export function buildReport(
   sessions: readonly ResolvedSession[],
@@ -221,6 +253,7 @@ export function buildReport(
   options?: ReportOptions,
 ): Report {
   const zone = options?.zone ?? utcOffset;
+  const range = options?.range ?? ALL_TIME;
 
   const dayMap = new Map<string, TimeBucketAccumulator>();
   const monthMap = new Map<string, TimeBucketAccumulator>();
@@ -228,10 +261,36 @@ export function buildReport(
     requests: 0,
     costMicroUsd: 0,
   };
+  const excludedTotals: { requests: number; costMicroUsd: number; undatedRequests: number } = {
+    requests: 0,
+    costMicroUsd: 0,
+    undatedRequests: 0,
+  };
 
-  const sessionRows = sessions.map((session) =>
-    buildSessionRow(session, zone, dayMap, monthMap, undated),
+  const allSessionRows = sessions.map((session) =>
+    buildSessionRow(session, zone, range, dayMap, monthMap, undated, excludedTotals),
   );
+
+  // Q8: under a bounded range, a session with zero in-range requests is
+  // dropped from the report entirely — from `sessions` and from BOTH
+  // groupings — so every grouping stays a partition of `report.sessions`
+  // (LEARNINGS: `CostTotals` carries no session count, so any "total
+  // sessions" figure is derived by summing group session counts, which is
+  // correct only while every grouping IS a partition). Under ALL_TIME nothing
+  // is dropped: a session with zero `result` lines but a non-zero
+  // `openRequests` still appears, exactly as before this session existed.
+  let excludedSessions = 0;
+  let sessionRows = allSessionRows;
+  if (!isAllTime(range)) {
+    sessionRows = [];
+    for (const row of allSessionRows) {
+      if (row.totals.requests === 0) {
+        excludedSessions += 1;
+      } else {
+        sessionRows.push(row);
+      }
+    }
+  }
 
   const sortedSessions = [...sessionRows].sort((a, b) =>
     compareByCostDescThenKeyAsc(
@@ -269,8 +328,17 @@ export function buildReport(
     byDay: sortedBuckets(dayMap),
     byMonth: sortedBuckets(monthMap),
     undated: Object.freeze({ requests: undated.requests, costMicroUsd: undated.costMicroUsd }),
+    // Q10: a gap is a property of the data on disk, not of the view — always
+    // the FULL, unfiltered session set, never `sessionRows`.
     gaps: summarizeGaps(sessions),
     problems: Object.freeze([...problems]),
+    range,
+    excluded: Object.freeze({
+      sessions: excludedSessions,
+      requests: excludedTotals.requests,
+      costMicroUsd: excludedTotals.costMicroUsd,
+      undatedRequests: excludedTotals.undatedRequests,
+    }),
   });
 }
 

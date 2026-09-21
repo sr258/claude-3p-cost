@@ -796,3 +796,118 @@ export const costDriversTree: FakeTree = Object.freeze({
   }),
   hostEnvironment: HOST_ENVIRONMENT,
 });
+
+// ─── dateRangeTree (S13, US-5.1) ────────────────────────────────────────────
+// Every value invented (plan §0.2); nothing copied, quoted or paraphrased
+// from the reference tree. All three sessions share one project so the
+// e2e spec can watch the SAME group's session count and total move under a
+// filter, rather than a group disappearing entirely.
+
+const DATE_RANGE_ROOT = "C:/Users/e2e/AppData/Local/Claude-3p/local-agent-mode-sessions";
+const DATE_RANGE_PROFILE = `${DATE_RANGE_ROOT}/acct-1/profile-1`;
+
+export const DATE_RANGE_SPACE_ID = "space-daterange";
+export const DATE_RANGE_PARTIAL_SESSION_ID = "rng00001";
+export const DATE_RANGE_DROPPED_SESSION_ID = "rng00002";
+const DATE_RANGE_WHOLE_SESSION_ID = "rng00003";
+
+/**
+ * March total: the in-range half of the straddling session (50.00) plus the
+ * wholly-in-March session (100.00). Also what "Dieser Monat" resolves to
+ * under the fixed clock `e2e/date-range.spec.ts` installs (2026-03-15).
+ */
+export const DATE_RANGE_TOTAL_MARCH_USD = 150.0;
+/** Sum of every request across all three sessions, unfiltered. */
+export const DATE_RANGE_TOTAL_ALL_USD = 250.0;
+
+const DATE_RANGE_PARTIAL_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-opus-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-03-20T12:00:00.000Z",
+    totalCostUsd: 50.0,
+    durationMs: 4_000,
+    durationApiMs: 3_800,
+    numTurns: 1,
+    sessionId: "rng00001-march-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-04-05T12:00:00.000Z",
+    totalCostUsd: 25.0,
+    durationMs: 3_000,
+    durationApiMs: 2_800,
+    numTurns: 1,
+    sessionId: "rng00001-april-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+const DATE_RANGE_DROPPED_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-04-10T12:00:00.000Z",
+    totalCostUsd: 75.0,
+    durationMs: 6_000,
+    durationApiMs: 5_500,
+    numTurns: 1,
+    sessionId: "rng00002-full-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+const DATE_RANGE_WHOLE_AUDIT = [
+  '{"type":"system","subtype":"init","model":"claude-sonnet-5"}',
+  '{"type":"command_lifecycle","state":"queued"}',
+  '{"type":"command_lifecycle","state":"started"}',
+  resultLine({
+    timestamp: "2026-03-10T12:00:00.000Z",
+    totalCostUsd: 100.0,
+    durationMs: 5_000,
+    durationApiMs: 4_800,
+    numTurns: 1,
+    sessionId: "rng00003-full-uuid",
+  }),
+  '{"type":"command_lifecycle","state":"completed"}',
+  "",
+].join("\n");
+
+export const dateRangeTree: FakeTree = Object.freeze({
+  directories: Object.freeze([]),
+  files: Object.freeze({
+    [`${DATE_RANGE_PROFILE}/spaces.json`]: JSON.stringify([
+      { id: DATE_RANGE_SPACE_ID, name: "Date Range Test" },
+    ]),
+    [`${DATE_RANGE_PROFILE}/local_${DATE_RANGE_PARTIAL_SESSION_ID}-manifest-uuid.json`]:
+      JSON.stringify({
+        title: "Straddling session",
+        spaceId: DATE_RANGE_SPACE_ID,
+        model: "claude-opus-5",
+      }),
+    [`${DATE_RANGE_PROFILE}/local_${DATE_RANGE_DROPPED_SESSION_ID}-manifest-uuid.json`]:
+      JSON.stringify({
+        title: "April-only session",
+        spaceId: DATE_RANGE_SPACE_ID,
+        model: "claude-sonnet-5",
+      }),
+    [`${DATE_RANGE_PROFILE}/local_${DATE_RANGE_WHOLE_SESSION_ID}-manifest-uuid.json`]:
+      JSON.stringify({
+        title: "Wholly-in-March session",
+        spaceId: DATE_RANGE_SPACE_ID,
+        model: "claude-sonnet-5",
+      }),
+    [`${DATE_RANGE_PROFILE}/${DATE_RANGE_PARTIAL_SESSION_ID}/audit.jsonl`]:
+      DATE_RANGE_PARTIAL_AUDIT,
+    [`${DATE_RANGE_PROFILE}/${DATE_RANGE_DROPPED_SESSION_ID}/audit.jsonl`]:
+      DATE_RANGE_DROPPED_AUDIT,
+    [`${DATE_RANGE_PROFILE}/${DATE_RANGE_WHOLE_SESSION_ID}/audit.jsonl`]: DATE_RANGE_WHOLE_AUDIT,
+  }),
+  hostEnvironment: HOST_ENVIRONMENT,
+});

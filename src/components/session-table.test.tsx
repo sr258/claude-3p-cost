@@ -32,6 +32,8 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
     models: { models: [], costMicroUsd: 0 },
     requests: [],
     toolUses: [],
+    excludedRequests: 0,
+    isPartial: false,
     ...partial,
   };
 }
@@ -57,6 +59,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -89,6 +92,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const rows = screen.getAllByTestId("session-row");
@@ -107,6 +111,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -126,6 +131,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -145,6 +151,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -164,6 +171,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     expect(screen.getByTestId("sort-cost").closest("th")?.getAttribute("aria-sort")).toBe(
@@ -188,6 +196,7 @@ describe("SessionTable", () => {
         onSort={onSort}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     screen.getByTestId("sort-title").click();
@@ -226,6 +235,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     spy.mockRestore();
@@ -267,6 +277,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const deIds = screen.getAllByTestId("session-row")[0]!.querySelectorAll("[data-testid]").length;
@@ -283,6 +294,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const enIds = screen.getAllByTestId("session-row")[0]!.querySelectorAll("[data-testid]").length;
@@ -302,6 +314,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
@@ -321,6 +334,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={new Set(["s1"])}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     expect(screen.getByTestId("session-row").getAttribute("data-session-id")).toBe("s1");
@@ -348,6 +362,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     expect(screen.queryByTestId("session-detail-row")).toBeNull();
@@ -365,6 +380,7 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
       />,
     );
     const disclosure = within(screen.getByTestId("session-row")).getByTestId("session-disclosure");
@@ -384,9 +400,61 @@ describe("SessionTable", () => {
         onSort={NOOP_SORT}
         expandedSessionKeys={EMPTY_EXPANDED}
         onToggleSession={onToggleSession}
+        rangeActive={false}
       />,
     );
     within(screen.getByTestId("session-row")).getByTestId("session-disclosure").click();
     expect(onToggleSession).toHaveBeenCalledWith("s1");
+  });
+
+  it("a partial session row renders the badge and sets data-partial to true", () => {
+    const sessions = [
+      sessionRow({
+        sessionId: "s1",
+        isPartial: true,
+        excludedRequests: 12,
+        totals: totalsOf({ requests: 8 }),
+      }),
+    ];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={true}
+      />,
+    );
+    const row = screen.getAllByTestId("session-row")[0]!;
+    expect(row.getAttribute("data-partial")).toBe("true");
+    const badge = within(row).getByTestId("partial-badge");
+    expect(badge.textContent).toBe(t("session.partial"));
+    expect(badge.getAttribute("title")).toBe(
+      t("session.partialTitle", { included: "8", total: "20" }),
+    );
+  });
+
+  it("a fully included row sets data-partial to false and renders no badge", () => {
+    const sessions = [sessionRow({ sessionId: "s1", isPartial: false })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
+      />,
+    );
+    const row = screen.getAllByTestId("session-row")[0]!;
+    expect(row.getAttribute("data-partial")).toBe("false");
+    expect(within(row).queryByTestId("partial-badge")).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ function groupRow(partial: Partial<GroupRow> & Pick<GroupRow, "key" | "label">):
     sessionCount: 0,
     totals: EMPTY_TOTALS,
     models: EMPTY_MODEL_BREAKDOWN,
+    partialSessions: 0,
     ...partial,
   };
 }
@@ -38,6 +39,8 @@ function sessionRow(partial: Partial<SessionRow> & Pick<SessionRow, "sessionId">
     models: EMPTY_MODEL_BREAKDOWN,
     requests: [],
     toolUses: [],
+    excludedRequests: 0,
+    isPartial: false,
     ...partial,
   };
 }
@@ -62,6 +65,7 @@ function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTabl
     onSelect: NOOP_SELECT,
     expandedSessionKeys: EMPTY_EXPANDED,
     onToggleSession: NOOP_TOGGLE_SESSION,
+    rangeActive: false,
     ...overrides,
   };
 }
@@ -107,7 +111,7 @@ describe("OverviewTable", () => {
     // The project cell is a `<th scope="row">` (plan §6.4), so it is counted
     // by test id rather than by the "cell" role, which it no longer carries.
     expect(within(row).getByTestId("cell-project")).toBeTruthy();
-    expect(within(row).getByTestId("cell-sessions")).toBeTruthy();
+    expect(within(row).getByTestId("cell-group-sessions")).toBeTruthy();
     expect(within(row).getByTestId("cell-requests")).toBeTruthy();
     expect(within(row).getByTestId("cell-cost")).toBeTruthy();
     expect(within(row).getByTestId("cell-duration")).toBeTruthy();
@@ -418,5 +422,37 @@ describe("OverviewTable", () => {
 
     const totalRow = screen.getByTestId("total-row");
     expect(within(totalRow).getByTestId("cell-cost").textContent).toContain("999.00");
+  });
+
+  it("a group with partial sessions shows the roll-up count", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 7,
+        partialSessions: 2,
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups })} />);
+
+    expect(screen.getByTestId("cell-group-sessions").textContent).toBe(
+      t("overview.sessionCountWithPartial", { count: "7", partial: "2" }),
+    );
+  });
+
+  it("a group with no partial sessions shows only the session count", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 7,
+        partialSessions: 0,
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups })} />);
+
+    expect(screen.getByTestId("cell-group-sessions").textContent).toBe("7");
   });
 });

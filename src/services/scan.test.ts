@@ -39,7 +39,7 @@ describe("scanDiscovery", () => {
       auditLogs: { [OK_SESSION.auditPath]: { lines: basicLines() } },
     });
 
-    const report = await scanDiscovery(fs, discoveryOf([OK_SESSION]));
+    const { report } = await scanDiscovery(fs, discoveryOf([OK_SESSION]));
 
     expect(report.sessions).toHaveLength(1);
     expect(report.totals.requests).toBe(3);
@@ -63,7 +63,7 @@ describe("scanDiscovery", () => {
       },
     });
 
-    const report = await scanDiscovery(fs, discoveryOf([session]));
+    const { report } = await scanDiscovery(fs, discoveryOf([session]));
 
     const problem = report.problems.find((p) => p.kind === "decode-replacement");
     expect(problem).toBeDefined();
@@ -83,7 +83,7 @@ describe("scanDiscovery", () => {
       unreadableFiles: [badSession.auditPath],
     });
 
-    const report = await scanDiscovery(fs, discoveryOf([OK_SESSION, badSession]));
+    const { report } = await scanDiscovery(fs, discoveryOf([OK_SESSION, badSession]));
 
     expect(report.sessions).toHaveLength(1);
     expect(report.totals.costMicroUsd).toBe(500000);
@@ -153,7 +153,7 @@ describe("scanDiscovery", () => {
     const { fs, sessions } = threeSessions();
     const partials: number[] = [];
 
-    const finalReport = await scanDiscovery(fs, discoveryOf(sessions), {
+    const { report: finalReport } = await scanDiscovery(fs, discoveryOf(sessions), {
       partialIntervalMs: 0,
       onPartial: (partial) => partials.push(partial.sessions.length),
     });

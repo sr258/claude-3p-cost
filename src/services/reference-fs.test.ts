@@ -63,7 +63,7 @@ describe.skipIf(!existsSync(dir))("reference filesystem", () => {
 
   it("reproduces the reference totals through the dev filesystem", async () => {
     const discovery = await discover(fs);
-    const report = await scanDiscovery(fs, discovery);
+    const { report } = await scanDiscovery(fs, discovery);
 
     expect(report.totals.requests).toBe(508);
     expect(report.projectGroups).toHaveLength(7);

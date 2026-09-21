@@ -157,4 +157,30 @@ describe("report privacy", () => {
     // them may survive into the row (NFR-6, S12 plan §2 Q5).
     expect(JSON.stringify(session)).not.toMatch(/toolu_/);
   });
+
+  it("the new filter fields carry no path and no free text (S13 plan §4.2)", () => {
+    const problems = createProblemCollector();
+    const parsed = parseManifestText(
+      readText(MANIFEST_ORDINARY_JSON),
+      basename(MANIFEST_ORDINARY_JSON),
+      problems,
+    )!;
+    const index = buildManifestIndex([parsed], problems);
+    const audit = createAuditAccumulator(parsed.meta.sessionId).finish();
+    const resolved = resolveSession(audit, index, new Map(), problems);
+
+    const report = buildReport([resolved], problems.problems, {
+      range: { fromMs: 0, toMs: Date.now() },
+    });
+
+    const sessionKeys = Object.keys(report.sessions[0] ?? {});
+    expect(sessionKeys).not.toContain("path");
+    expect(sessionKeys).not.toContain("cwd");
+    // report.range and report.excluded are numbers/null only.
+    expect(typeof report.range.fromMs === "number" || report.range.fromMs === null).toBe(true);
+    expect(typeof report.range.toMs === "number" || report.range.toMs === null).toBe(true);
+    expect(Object.values(report.excluded).every((v) => typeof v === "number")).toBe(true);
+    expect(JSON.stringify(report.range)).not.toMatch(/[/\\]/);
+    expect(JSON.stringify(report.excluded)).not.toMatch(/[/\\]/);
+  });
 });

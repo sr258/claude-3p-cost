@@ -9,6 +9,41 @@ Newest entry first.
 
 ---
 
+- **A negative control that fails to fail is not automatically a plan error —
+  ask what the missing test was *for* before concluding the reference was
+  merely mis-numbered.** A control predicting two failures produced one, and
+  the untouched test genuinely never called the patched function. But the
+  property that mattered was the *composite* of the two — that a boundary
+  instant lands in exactly one of two adjacent periods — and no test asserted
+  it, so the bug would have survived a green suite. Under-failure is a prompt
+  to look for the uncovered composite, not a bookkeeping correction.
+- **A "sums to N" invariant over two views derived from one array is a
+  tautology, and no negative control will reveal it — only reasoning about the
+  data flow will.** Where both groupings are built from the same row array, any
+  session-level filter applied consistently preserves the sum by construction,
+  right or wrong. Pair such an assertion with a concrete expected count from a
+  fixture engineered so the wrong rule yields a different number.
+- **Passing a default's own value explicitly is a self-agreeing comparison, not
+  a test of the default.** Comparing a call with `{ range: ALL_TIME }` against
+  one with no options exercises the same `options?.range ?? ALL_TIME`
+  expression on both sides, so a bug in what the default *means* moves both
+  identically and the equality still holds. Testing a default path needs a case
+  where the defaulted behaviour is observable alone — a session with zero
+  `result` lines but non-zero `openRequests`, which survives unfiltered and is
+  dropped under any bounded range.
+- **A trailing `as <TypeName>` on a test helper silently opts a whole file out
+  of the compiler fan-out that catches incomplete literals.** Widening a shared
+  type only fails the build where the literal is actually checked; one
+  assertion on a factory turns that into a no-op for every test in the file,
+  and the next field added goes missing there silently. When a session widens a
+  shared type, grep the fallout files for `as <TypeName>` as well as for the
+  literals.
+- **The NUL-byte scan has a permanent, legitimate hit.**
+  `test/fixtures/utf16le-lines.bin` is UTF-16LE, so every ASCII character in it
+  is a NUL byte, and `--encoding none` correctly refuses to transcode that
+  away. The expectation is "prints exactly `test/fixtures/utf16le-lines.bin`",
+  never "prints nothing" — the latter trains its reader to wave through the one
+  line the check always emits, which is how a real NUL gets past it.
 - **A regression pin computed from real data cannot prove a guard-rail that
   happens to be a no-op on that data.** A dedup key that removes a duplicate
   scores identically to no dedup at all when the real dataset never contains

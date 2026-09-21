@@ -3,6 +3,7 @@
  * See `docs/plans/S5-aggregation.md` §4.2.
  */
 import type { RequestRecord } from "./audit-types.js";
+import type { DateRange } from "./date-range.js";
 import type { Problem } from "./problems.js";
 import type { FolderRef, ProjectRef, ScanGaps } from "./project-types.js";
 import type { ToolUseCount } from "./tool-usage.js";
@@ -92,6 +93,10 @@ export interface SessionRow {
    * `rankToolUses`. Carries no id, no path and no free text (NFR-6).
    */
   readonly toolUses: readonly ToolUseCount[];
+  /** Requests this session has that the active range excluded. 0 under ALL_TIME. */
+  readonly excludedRequests: number;
+  /** excludedRequests > 0 && totals.requests > 0 — "partially included" (US-5.1). */
+  readonly isPartial: boolean;
 }
 
 /** The UI maps a "none" kind to a translated label. The model never does. */
@@ -108,6 +113,8 @@ export interface GroupRow {
   readonly sessionCount: number;
   readonly totals: CostTotals;
   readonly models: ModelBreakdown;
+  /** Sessions in this group with isPartial true. */
+  readonly partialSessions: number;
 }
 
 export interface TimeBucket {
@@ -143,4 +150,19 @@ export interface Report {
   /** S4's summarizeGaps, passed through unchanged. */
   readonly gaps: ScanGaps;
   readonly problems: readonly Problem[];
+  /** The range this report was built with. S19 exports it from here, not from a signal. */
+  readonly range: DateRange;
+  /** What the range removed. Zeroes under ALL_TIME. */
+  readonly excluded: {
+    readonly sessions: number;
+    readonly requests: number;
+    readonly costMicroUsd: number;
+    /**
+     * Of `requests`, how many were excluded for having NO timestamp rather
+     * than for falling outside the bounds (Q9). Always 0 under ALL_TIME,
+     * since `containsInstant(null, ALL_TIME)` is true. Surfaced by
+     * `GapIndicators`' undated-excluded line.
+     */
+    readonly undatedRequests: number;
+  };
 }

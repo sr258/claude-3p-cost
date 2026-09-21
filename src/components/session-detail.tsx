@@ -22,6 +22,8 @@ import { parseTimestamp } from "../model/time-buckets.js";
 export interface SessionDetailProps {
   /** Requests are already ordered by the model; this component never sorts. */
   readonly session: SessionRow;
+  /** Whether a bounded date range is active (S13 plan §4.8, Q11). */
+  readonly rangeActive: boolean;
 }
 
 const CATEGORY_LABEL_KEY: Record<
@@ -46,7 +48,7 @@ function requestKey(request: RequestRecord, index: number): string {
 }
 
 export function SessionDetail(props: SessionDetailProps) {
-  const { session } = props;
+  const { session, rangeActive } = props;
   const breakdown = tokenCategories(session.totals.tokens);
   const unattributed = unattributedCostMicroUsd(session.totals, session.models);
 
@@ -134,6 +136,7 @@ export function SessionDetail(props: SessionDetailProps) {
 
       <section class="session-detail__tools" data-testid="tool-usage">
         <h4 id={toolsHeadingId}>{t("detail.tools.heading")}</h4>
+        {rangeActive && <p data-testid="tool-usage-unfiltered">{t("detail.tools.unfiltered")}</p>}
         {session.toolUses.length === 0 ? (
           <p data-testid="tool-usage-empty">{t("detail.tools.empty")}</p>
         ) : (

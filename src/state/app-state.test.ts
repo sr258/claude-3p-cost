@@ -8,9 +8,11 @@
  * exercised without a real filesystem or a real scan.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ALL_TIME, isAllTime } from "../model/date-range.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
 import type { Report } from "../model/report-types.js";
 import type { Discovery } from "../services/discovery.js";
+import type { ScanResult } from "../services/scan.js";
 
 const fakeDiscovery: Discovery = Object.freeze({
   roots: [],
@@ -39,7 +41,14 @@ function makeReport(sessionCount: number): Report {
       archivedSessions: 0,
     }),
     problems: Object.freeze([]),
+    range: ALL_TIME,
+    excluded: Object.freeze({ sessions: 0, requests: 0, costMicroUsd: 0, undatedRequests: 0 }),
   });
+}
+
+/** `scanDiscovery` now returns a `ScanResult` (S13 plan §4.5, §4.9). */
+function makeScanResult(sessionCount: number): ScanResult {
+  return { report: makeReport(sessionCount), sessions: [], problems: [] };
 }
 
 vi.mock("../services/filesystem.js", () => ({
@@ -54,7 +63,9 @@ vi.mock("../services/scan.js", () => ({
 
 import { scanDiscovery } from "../services/scan.js";
 import {
+  activeRange,
   clearGroupScope,
+  clearRange,
   expandedGroups,
   expandedKeysFor,
   expandedSessionKeysFor,
@@ -62,6 +73,8 @@ import {
   grouping,
   lastScanAt,
   modelPanelOpen,
+  rangeInvalid,
+  rangePreset,
   report,
   runScan,
   scanState,
@@ -69,8 +82,10 @@ import {
   selectedGroups,
   sessionSortDirection,
   sessionSortField,
+  setCustomDays,
   setGrouping,
   setModelPanelOpen,
+  setRangePreset,
   setSessionSort,
   toggleGroup,
   toggleGroupScope,
@@ -86,7 +101,7 @@ describe("runScan", () => {
   });
 
   it("sets lastScanAt on success", async () => {
-    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
 
     await runScan();
 
@@ -99,7 +114,7 @@ describe("runScan", () => {
     vi.mocked(scanDiscovery).mockImplementation(async (_fs, _discovery, options) => {
       options?.onPartial?.(makeReport(1));
       seenStates.push(scanState.value);
-      return makeReport(2);
+      return makeScanResult(2);
     });
 
     await runScan();
@@ -229,7 +244,7 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
   it("expansion and sort state survive a rescan", async () => {
     toggleGroup("project", "a");
     setSessionSort("title");
-    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
 
     await runScan();
 
@@ -244,7 +259,7 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
     toggleGroupScope("folder", "f1");
     setSessionSort("duration");
     setModelPanelOpen(false);
-    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
 
     await runScan();
 
@@ -276,10 +291,51 @@ describe("expandedSessions / toggleSession / expandedSessionKeysFor", () => {
 
   it("session expansion survives a rescan", async () => {
     toggleSession("project", "sess1");
-    vi.mocked(scanDiscovery).mockResolvedValue(makeReport(0));
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
 
     await runScan();
 
     expect(expandedSessionKeysFor("project").has("sess1")).toBe(true);
+  });
+});
+
+describe("date range filter (S13 plan §4.7)", () => {
+  beforeEach(async () => {
+    clearRange();
+    vi.mocked(scanDiscovery).mockReset();
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
+    await runScan();
+    vi.mocked(scanDiscovery).mockClear();
+  });
+
+  it("changing the preset rebuilds the report without calling scanDiscovery again", () => {
+    expect(isAllTime(report.value!.range)).toBe(true);
+
+    setRangePreset("thisMonth");
+
+    expect(isAllTime(report.value!.range)).toBe(false);
+    expect(scanDiscovery).not.toHaveBeenCalled();
+  });
+
+  it("an invalid custom pair leaves the previously active range applied", () => {
+    setRangePreset("custom");
+
+    setCustomDays("2026-03-01", "2026-01-01"); // "from" after "to"
+
+    expect(rangeInvalid.value).toBe(true);
+    // "all" (ALL_TIME) was the last valid range before the invalid pair.
+    expect(isAllTime(activeRange.value)).toBe(true);
+    expect(isAllTime(report.value!.range)).toBe(true);
+  });
+
+  it("runScan does not reset the active range", async () => {
+    setRangePreset("thisMonth");
+    const rangeBefore = activeRange.value;
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
+
+    await runScan();
+
+    expect(rangePreset.value).toBe("thisMonth");
+    expect(activeRange.value).toEqual(rangeBefore);
   });
 });

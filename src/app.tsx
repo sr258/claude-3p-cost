@@ -25,6 +25,7 @@
 import { useEffect } from "preact/hooks";
 import { t } from "./i18n/index.js";
 import { LanguageSwitcher } from "./components/language-switcher.js";
+import { DateRangeFilter } from "./components/date-range-filter.js";
 import { EmptyState } from "./components/empty-state.js";
 import { GapIndicators } from "./components/gap-indicators.js";
 import { groupLabelText } from "./components/group-label.js";
@@ -32,21 +33,30 @@ import { GroupingToggle } from "./components/grouping-toggle.js";
 import { ModelPanel, type ModelScope } from "./components/model-panel.js";
 import { OverviewTable } from "./components/overview-table.js";
 import { StatusBar } from "./components/status-bar.js";
+import { dayStringsOf, isAllTime } from "./model/date-range.js";
 import { findGroup } from "./model/report.js";
+import { localZoneOffset } from "./services/zone.js";
 import {
+  activeRange,
   clearGroupScope,
+  customFromDay,
+  customToDay,
   expandedKeysFor,
   expandedSessionKeysFor,
   grouping,
   modelPanelOpen,
+  rangeInvalid,
+  rangePreset,
   report,
   runScan,
   scanState,
   selectedGroupKey,
   sessionSortDirection,
   sessionSortField,
+  setCustomDays,
   setGrouping,
   setModelPanelOpen,
+  setRangePreset,
   setSessionSort,
   toggleGroup,
   toggleGroupScope,
@@ -75,6 +85,16 @@ export function App() {
     ? { kind: "group", label: groupLabelText(selectedGroup.label).text }
     : { kind: "all" };
 
+  // US-5.1 (S13): rangeActive is a property of the report actually shown, not
+  // of the control state — a preset resolving to ALL_TIME (e.g. still "all")
+  // is not "active" even though a preset is technically selected.
+  const rangeActive = currentReport !== null && !isAllTime(currentReport.range);
+  const currentPreset = rangePreset.value;
+  const { from: displayFromDay, to: displayToDay } =
+    currentPreset === "custom"
+      ? { from: customFromDay.value, to: customToDay.value }
+      : dayStringsOf(activeRange.value, localZoneOffset);
+
   return (
     <main class="app-shell" data-testid="app-shell">
       <header class="app-bar">
@@ -85,13 +105,27 @@ export function App() {
 
       <p class="app-shell__subtitle">{t("app.subtitle")}</p>
 
-      {currentReport && <GapIndicators gaps={currentReport.gaps} />}
+      {currentReport && (
+        <GapIndicators
+          gaps={currentReport.gaps}
+          rangeActive={rangeActive}
+          undatedExcluded={currentReport.excluded.undatedRequests}
+        />
+      )}
 
       {hasGroups && currentReport ? (
         <>
           {scanState.value === "scanning" && <p data-testid="scan-running">{t("scan.running")}</p>}
           <div class="toolbar-row">
             <GroupingToggle value={currentGrouping} onChange={setGrouping} />
+            <DateRangeFilter
+              preset={currentPreset}
+              fromDay={displayFromDay}
+              toDay={displayToDay}
+              invalid={rangeInvalid.value}
+              onPreset={setRangePreset}
+              onCustomDays={setCustomDays}
+            />
             {!modelPanelOpen.value && (
               <button
                 type="button"
@@ -121,6 +155,7 @@ export function App() {
               onSelect={(groupKey) => toggleGroupScope(currentGrouping, groupKey)}
               expandedSessionKeys={expandedSessionKeysFor(currentGrouping)}
               onToggleSession={(sessionId) => toggleSession(currentGrouping, sessionId)}
+              rangeActive={rangeActive}
             />
             {modelPanelOpen.value && panelBreakdown && panelTotals && (
               <ModelPanel

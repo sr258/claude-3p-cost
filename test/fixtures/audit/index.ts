@@ -17,6 +17,15 @@ export const EMPTY_JSONL = `${DIR}empty.jsonl`;
 export const COST_DRIVERS_JSONL = `${DIR}cost-drivers.jsonl`;
 /** S12 plan §5: tool_use dedup, parallel calls, cross-request sums, tie-break, malformed blocks. */
 export const TOOL_USAGE_JSONL = `${DIR}tool-usage.jsonl`;
+/**
+ * S13 plan §5: one session crossing a month end, engineered so per-request,
+ * whole-session-kept and whole-session-dropped filtering give three
+ * different totals. Also carries one undated result (Q9) and one open
+ * request with no matching completed lifecycle line (Q10).
+ */
+export const MONTH_STRADDLE_JSONL = `${DIR}month-straddle.jsonl`;
+/** S13 plan §5: two requests either side of the European DST jump. */
+export const DST_STRADDLE_JSONL = `${DIR}dst-straddle.jsonl`;
 
 export const ALL_FIXTURES = [
   BASIC_JSONL,
@@ -28,4 +37,6 @@ export const ALL_FIXTURES = [
   EMPTY_JSONL,
   COST_DRIVERS_JSONL,
   TOOL_USAGE_JSONL,
+  MONTH_STRADDLE_JSONL,
+  DST_STRADDLE_JSONL,
 ];

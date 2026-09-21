@@ -85,7 +85,7 @@ test("sessions with no connected folder appear in the no-folder bucket", async (
 
   const noFolderRow = folderRowByKey(page, GROUPING_NO_FOLDER_KEY);
   await expect(noFolderRow).toHaveAttribute("data-group-key", GROUPING_NO_FOLDER_KEY);
-  await expect(noFolderRow.getByTestId("cell-sessions")).toHaveText("1");
+  await expect(noFolderRow.getByTestId("cell-group-sessions")).toHaveText("1");
 });
 
 test("a network-drive folder group carries the network badge and a local one does not", async ({

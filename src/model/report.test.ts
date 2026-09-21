@@ -1,8 +1,13 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { parseAuditText } from "./audit-parser.js";
 import type { AuditSession, ModelUsageRecord, RequestRecord } from "./audit-types.js";
+import { ALL_TIME, type DateRange } from "./date-range.js";
 import type { Problem } from "./problems.js";
 import type { ConnectedFolder, ProjectRef, ResolvedSession, SessionMeta } from "./project-types.js";
+import type { ZoneOffsetResolver } from "./time-buckets.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "./totals.js";
+import { DST_STRADDLE_JSONL, MONTH_STRADDLE_JSONL } from "../../test/fixtures/audit/index.js";
 import {
   buildReport,
   compareGroupRows,
@@ -612,6 +617,201 @@ describe("buildReport", () => {
       expect(report.byDay).toEqual([
         expect.objectContaining({ key: "2026-01-01", costMicroUsd: 100_000, requests: 1 }),
       ]);
+    });
+  });
+
+  describe("date range filtering (S13 plan §6)", () => {
+    // Half-open [2026-03-01, 2026-04-01): a UTC calendar March.
+    const marchRange: DateRange = {
+      fromMs: Date.parse("2026-03-01T00:00:00.000Z"),
+      toMs: Date.parse("2026-04-01T00:00:00.000Z"),
+    };
+
+    function fixtureSession(): ResolvedSession {
+      const audit = parseAuditText("straddle", readFileSync(MONTH_STRADDLE_JSONL, "utf-8"));
+      return { audit, meta: null, project: { kind: "none" }, folders: [] };
+    }
+
+    it("a session straddling a month end contributes only its in-range requests", () => {
+      // Load-bearing pin (LEARNINGS: build the test so the wrong
+      // implementation gives a different answer). "Filter by session" (keep
+      // everything, or drop everything) both give a DIFFERENT total here —
+      // see plan §5's table.
+      const report = buildReport([fixtureSession()], [], { range: marchRange });
+      expect(report.totals.costMicroUsd).toBe(3_000_000);
+      expect(report.totals.requests).toBe(2);
+    });
+
+    it("a straddling session is marked isPartial and reports its excluded request count", () => {
+      const report = buildReport([fixtureSession()], [], { range: marchRange });
+      const row = report.sessions[0]!;
+      expect(row.isPartial).toBe(true);
+      expect(row.excludedRequests).toBe(3);
+    });
+
+    it("a session wholly outside the range is dropped from sessions and from both groupings", () => {
+      const janRange: DateRange = {
+        fromMs: Date.parse("2026-01-01T00:00:00.000Z"),
+        toMs: Date.parse("2026-02-01T00:00:00.000Z"),
+      };
+      const report = buildReport([fixtureSession()], [], { range: janRange });
+      expect(report.sessions).toEqual([]);
+      expect(report.projectGroups).toEqual([]);
+      expect(report.folderGroups).toEqual([]);
+    });
+
+    it("group session counts still sum to report.sessions.length under a filter", () => {
+      // Includes the straddling fixture session alongside two whole-session
+      // cases: the fixed EXPECTED count of 3 (not merely "groups sum to
+      // whatever sessions.length happens to be") is what makes this fail
+      // under NC2 -- a group-sum check alone is a structural tautology in
+      // this codebase (both groupings are always derived from the same
+      // `sessionRows` array), so it cannot by itself catch "drop the whole
+      // session unless every request is in range" dropping the straddling
+      // session entirely (LEARNINGS: build the test so the wrong
+      // implementation gives a different answer).
+      const sessions = [
+        makeSession(
+          "also-in-range",
+          [makeRequest({ timestamp: "2026-03-20T00:00:00.000Z", costMicroUsd: 2 })],
+          { project: { kind: "named", spaceId: "p2", name: "Two" } },
+        ),
+        makeSession(
+          "outside",
+          [makeRequest({ timestamp: "2026-05-01T00:00:00.000Z", costMicroUsd: 3 })],
+          { project: { kind: "named", spaceId: "p3", name: "Three" } },
+        ),
+        fixtureSession(),
+      ];
+      const report = buildReport(sessions, [], { range: marchRange });
+      const projectSum = report.projectGroups.reduce((n, g) => n + g.sessionCount, 0);
+      const folderSum = report.folderGroups.reduce((n, g) => n + g.sessionCount, 0);
+      expect(report.sessions.length).toBe(2);
+      expect(projectSum).toBe(report.sessions.length);
+      expect(folderSum).toBe(report.sessions.length);
+    });
+
+    it("byDay and byMonth contain only in-range requests under a filter", () => {
+      const report = buildReport([fixtureSession()], [], { range: marchRange });
+      expect(report.byDay.map((b) => b.key)).toEqual(["2026-03-30", "2026-03-31"]);
+      expect(report.byMonth.map((b) => b.key)).toEqual(["2026-03"]);
+    });
+
+    it("a partial session's model breakdown covers only its in-range requests", () => {
+      const sessions = [
+        makeSession("s1", [
+          makeRequest({
+            timestamp: "2026-03-05T00:00:00.000Z",
+            models: [makeModel({ model: "claude-opus-5", costMicroUsd: 1_000 })],
+          }),
+          makeRequest({
+            timestamp: "2026-05-05T00:00:00.000Z",
+            models: [makeModel({ model: "claude-opus-5", costMicroUsd: 9_000 })],
+          }),
+        ]),
+      ];
+      const report = buildReport(sessions, [], { range: marchRange });
+      expect(report.sessions[0]!.models.costMicroUsd).toBe(1_000);
+    });
+
+    it("SessionRow.requests lists only the in-range requests of a partial session", () => {
+      const report = buildReport([fixtureSession()], [], { range: marchRange });
+      expect(report.sessions[0]!.requests).toHaveLength(2);
+      expect(report.sessions[0]!.requests.map((r) => r.costMicroUsd)).toEqual([
+        1_000_000, 2_000_000,
+      ]);
+    });
+
+    it("undated requests are excluded under a bounded range and counted in report.excluded", () => {
+      const report = buildReport([fixtureSession()], [], { range: marchRange });
+      expect(report.undated).toEqual({ requests: 0, costMicroUsd: 0 });
+      expect(report.excluded.undatedRequests).toBe(1);
+      expect(report.excluded.requests).toBe(3);
+      expect(report.excluded.costMicroUsd).toBe(4_000_000 + 8_000_000 + 16_000_000);
+    });
+
+    it("openRequests and gaps are unchanged by a filter on a retained session", () => {
+      const withoutRange = buildReport([fixtureSession()], []);
+      const withRange = buildReport([fixtureSession()], [], { range: marchRange });
+      expect(withRange.sessions[0]!.openRequests).toBe(withoutRange.sessions[0]!.openRequests);
+      expect(withRange.sessions[0]!.openRequests).toBe(1);
+      expect(withRange.gaps).toEqual(withoutRange.gaps);
+    });
+
+    it("ALL_TIME produces a report deeply equal to one built with no range option", () => {
+      const sessions = [makeSession("s1", [makeRequest({ costMicroUsd: 5 })])];
+      const withOption = buildReport(sessions, [], { range: ALL_TIME });
+      const withoutOption = buildReport(sessions, []);
+      expect(withOption).toEqual(withoutOption);
+    });
+
+    it("a session with zero result lines but a non-zero openRequests still appears under ALL_TIME (Q8)", () => {
+      // The dropping rule is gated on `!isAllTime(range)` -- a session with NO
+      // requests at all must still survive when no range is active, exactly
+      // as it did before this session existed. This is the case an
+      // implementation that drops zero-request sessions unconditionally
+      // breaks, even though both `{ range: ALL_TIME }` and "no options" agree
+      // with each other on it (LEARNINGS: build the test so the wrong
+      // implementation gives a different answer).
+      const session = makeSession("s1", []);
+      const audit = { ...session.audit, openRequests: 1 };
+      const report = buildReport([{ ...session, audit }], []);
+      expect(report.sessions).toHaveLength(1);
+      expect(report.sessions[0]!.openRequests).toBe(1);
+      expect(report.sessions[0]!.totals.requests).toBe(0);
+    });
+
+    it("GroupRow.partialSessions counts only partially included sessions", () => {
+      const sessions = [
+        makeSession(
+          "partial",
+          [
+            makeRequest({ timestamp: "2026-03-05T00:00:00.000Z", costMicroUsd: 1 }),
+            makeRequest({ timestamp: "2026-05-05T00:00:00.000Z", costMicroUsd: 2 }),
+          ],
+          { project: { kind: "named", spaceId: "p", name: "P" } },
+        ),
+        makeSession(
+          "whole",
+          [makeRequest({ timestamp: "2026-03-10T00:00:00.000Z", costMicroUsd: 3 })],
+          { project: { kind: "named", spaceId: "p", name: "P" } },
+        ),
+      ];
+      const report = buildReport(sessions, [], { range: marchRange });
+      expect(report.projectGroups[0]!.partialSessions).toBe(1);
+      expect(report.projectGroups[0]!.sessionCount).toBe(2);
+    });
+
+    it("report.excluded is all zeroes under ALL_TIME", () => {
+      const report = buildReport([fixtureSession()], []);
+      expect(report.excluded).toEqual({
+        sessions: 0,
+        requests: 0,
+        costMicroUsd: 0,
+        undatedRequests: 0,
+      });
+    });
+
+    it("the DST fixture's two requests fall on different local days under a per-instant zone, despite sharing a UTC day", () => {
+      const audit = parseAuditText("dst", readFileSync(DST_STRADDLE_JSONL, "utf-8"));
+      const session: ResolvedSession = {
+        audit,
+        meta: null,
+        project: { kind: "none" },
+        folders: [],
+      };
+      // Both raw timestamps fall on 2026-03-29 in UTC. This resolver is
+      // engineered (not the host zone, LEARNINGS) so the offset differs
+      // before/after a threshold BETWEEN the two requests, splitting them
+      // onto different local days — proof the day key is derived per
+      // instant, not once for the whole session.
+      const jump = Date.parse("2026-03-29T01:00:00.000Z");
+      const zone: ZoneOffsetResolver = (ms) => (ms < jump ? -60 : 120);
+
+      const report = buildReport([session], [], { zone });
+
+      expect(report.byDay.map((b) => b.key)).toEqual(["2026-03-28", "2026-03-29"]);
+      expect(report.byDay.map((b) => b.costMicroUsd)).toEqual([1_000_000, 2_000_000]);
     });
   });
 });

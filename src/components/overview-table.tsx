@@ -39,6 +39,8 @@ export interface OverviewTableProps {
   readonly selectedKey: string | null;
   /** The same key again -> the caller resets to "all" (S10 plan §2 Q12). */
   readonly onSelect: (groupKey: string) => void;
+  /** Threaded to `SessionTable` -> `SessionDetail` (S13 plan §4.8, Q11). */
+  readonly rangeActive: boolean;
 }
 
 export function OverviewTable(props: OverviewTableProps) {
@@ -55,6 +57,7 @@ export function OverviewTable(props: OverviewTableProps) {
     onSelect,
     expandedSessionKeys,
     onToggleSession,
+    rangeActive,
   } = props;
 
   return (
@@ -130,7 +133,14 @@ export function OverviewTable(props: OverviewTableProps) {
                     {isSelected ? "✓" : "○"}
                   </button>
                 </th>
-                <td data-testid="cell-sessions">{tNumber(group.sessionCount)}</td>
+                <td data-testid="cell-group-sessions">
+                  {group.partialSessions > 0
+                    ? t("overview.sessionCountWithPartial", {
+                        count: tNumber(group.sessionCount),
+                        partial: tNumber(group.partialSessions),
+                      })
+                    : tNumber(group.sessionCount)}
+                </td>
                 <td data-testid="cell-requests">{tNumber(group.totals.requests)}</td>
                 <td data-testid="cell-cost">{tCurrency(group.totals.costMicroUsd / 1e6)}</td>
                 <td data-testid="cell-duration">{tDuration(group.totals.durationMs)}</td>
@@ -152,6 +162,7 @@ export function OverviewTable(props: OverviewTableProps) {
                         onSort={onSort}
                         expandedSessionKeys={expandedSessionKeys}
                         onToggleSession={onToggleSession}
+                        rangeActive={rangeActive}
                       />
                     </div>
                   </td>

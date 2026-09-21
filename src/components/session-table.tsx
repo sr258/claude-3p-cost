@@ -38,6 +38,8 @@ export interface SessionTableProps {
   /** US-3.1's session detail disclosure (S11 plan §4.6). */
   readonly expandedSessionKeys: ReadonlySet<string>;
   readonly onToggleSession: (sessionId: string) => void;
+  /** Threaded to `SessionDetail`'s tool-usage-unfiltered note (S13 plan §4.8, Q11). */
+  readonly rangeActive: boolean;
 }
 
 interface ColumnDef {
@@ -74,6 +76,7 @@ export function SessionTable(props: SessionTableProps) {
     onSort,
     expandedSessionKeys,
     onToggleSession,
+    rangeActive,
   } = props;
 
   return (
@@ -130,6 +133,7 @@ export function SessionTable(props: SessionTableProps) {
                 data-testid="session-row"
                 data-session-id={session.sessionId}
                 data-archived={session.isArchived ? "true" : undefined}
+                data-partial={session.isPartial}
               >
                 <td data-testid="cell-disclosure">
                   <button
@@ -151,6 +155,18 @@ export function SessionTable(props: SessionTableProps) {
                   {session.isArchived && (
                     <span data-testid="archived-badge">{t("session.archived")}</span>
                   )}
+                  {session.isPartial && (
+                    <span
+                      class="session-table__partial"
+                      data-testid="partial-badge"
+                      title={t("session.partialTitle", {
+                        included: tNumber(session.totals.requests),
+                        total: tNumber(session.totals.requests + session.excludedRequests),
+                      })}
+                    >
+                      {t("session.partial")}
+                    </span>
+                  )}
                 </td>
                 <td data-testid="cell-requests">{tNumber(session.totals.requests)}</td>
                 <td data-testid="cell-cost">{tCurrency(session.totals.costMicroUsd / 1e6)}</td>
@@ -168,7 +184,7 @@ export function SessionTable(props: SessionTableProps) {
               {isExpanded && (
                 <tr data-testid="session-detail-row">
                   <td colSpan={9} id={detailId}>
-                    <SessionDetail session={session} />
+                    <SessionDetail session={session} rangeActive={rangeActive} />
                   </td>
                 </tr>
               )}

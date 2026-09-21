@@ -76,7 +76,7 @@ describe("the empty-state walk", () => {
     const fs = createFakeFileSystem({ candidates: [] });
     const discovery = await discover(fs);
 
-    const report = await scanDiscovery(fs, discovery);
+    const { report } = await scanDiscovery(fs, discovery);
 
     expect(report.sessions).toHaveLength(0);
     expect(report.projectGroups).toHaveLength(0);

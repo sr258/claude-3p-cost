@@ -18,12 +18,19 @@ import type { ScanGaps } from "../model/project-types.js";
 
 export interface GapIndicatorsProps {
   readonly gaps: ScanGaps;
+  /** Whether a bounded date range is active (S13 plan §4.8, Q9, Q10). */
+  readonly rangeActive: boolean;
+  /** `Report.excluded.undatedRequests`. Always 0 unless `rangeActive`. */
+  readonly undatedExcluded: number;
 }
 
 export function GapIndicators(props: GapIndicatorsProps) {
-  const { gaps } = props;
+  const { gaps, rangeActive, undatedExcluded } = props;
   const hasAnyGap =
-    gaps.openRequests > 0 || gaps.sessionsWithoutManifest > 0 || gaps.archivedSessions > 0;
+    gaps.openRequests > 0 ||
+    gaps.sessionsWithoutManifest > 0 ||
+    gaps.archivedSessions > 0 ||
+    (rangeActive && undatedExcluded > 0);
 
   return (
     <section class="gap-indicators" data-testid="gap-indicators" aria-label={t("gaps.heading")}>
@@ -32,6 +39,16 @@ export function GapIndicators(props: GapIndicatorsProps) {
         <span class="gap-chip" data-testid="gap-open-requests">
           <span>{tPlural("gaps.openRequests", gaps.openRequests)}</span>
           <span class="gap-chip__explanation">{t("gaps.openRequestsExplanation")}</span>
+          {rangeActive && (
+            <span class="gap-chip__qualifier" data-testid="gap-open-requests-unfiltered">
+              {t("gaps.openRequestsUnfiltered")}
+            </span>
+          )}
+        </span>
+      )}
+      {rangeActive && undatedExcluded > 0 && (
+        <span class="gap-chip" data-testid="gap-undated-excluded">
+          {tPlural("gaps.undatedExcluded", undatedExcluded)}
         </span>
       )}
       {gaps.sessionsWithoutManifest > 0 && (

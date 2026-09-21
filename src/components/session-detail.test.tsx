@@ -52,6 +52,8 @@ function makeSessionRow(overrides: Partial<SessionRow> = {}): SessionRow {
     models: EMPTY_MODEL_BREAKDOWN,
     requests: [],
     toolUses: [],
+    excludedRequests: 0,
+    isPartial: false,
     ...overrides,
   };
 }
@@ -74,7 +76,7 @@ describe("SessionDetail", () => {
         },
       },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const rows = screen.getAllByTestId("category-row");
     expect(rows.map((r) => r.getAttribute("data-category"))).toEqual([
       "input",
@@ -93,14 +95,14 @@ describe("SessionDetail", () => {
 
   it("labels the share column as a token share and shows the no-price-table note", () => {
     const session = makeSessionRow();
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.getByText(t("detail.columnTokenShare"))).toBeTruthy();
     expect(screen.getByTestId("token-share-note").textContent).toBe(t("detail.tokenShareNote"));
   });
 
   it("shows the measured session cost as the only currency figure in the category section", () => {
     const session = makeSessionRow({ totals: { ...EMPTY_TOTALS, costMicroUsd: 1_500_000 } });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.getByTestId("detail-measured-cost").textContent).toBe(
       t("detail.measuredCost", { cost: tCurrency(1.5) }),
     );
@@ -113,7 +115,7 @@ describe("SessionDetail", () => {
         tokens: { ...EMPTY_TOTALS.tokens, outputTokens: 1000, thinkingTokens: 250 },
       },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const categoryKinds = screen
       .getAllByTestId("category-row")
       .map((r) => r.getAttribute("data-category"));
@@ -137,7 +139,7 @@ describe("SessionDetail", () => {
         },
       },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const categoryKinds = screen
       .getAllByTestId("category-row")
       .map((r) => r.getAttribute("data-category"));
@@ -156,7 +158,7 @@ describe("SessionDetail", () => {
         },
       },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const categoryKinds = screen
       .getAllByTestId("category-row")
       .map((r) => r.getAttribute("data-category"));
@@ -165,7 +167,7 @@ describe("SessionDetail", () => {
 
   it("hides the server-tool summary when web search, web fetch and subagents are all zero", () => {
     const session = makeSessionRow();
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.queryByTestId("server-tool-summary")).toBeNull();
   });
 
@@ -176,7 +178,7 @@ describe("SessionDetail", () => {
         tokens: { ...EMPTY_TOTALS.tokens, webSearchRequests: 3, webFetchRequests: 0 },
       },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.getByTestId("server-tool-summary")).toBeTruthy();
     expect(screen.getByTestId("server-tool-web-search").textContent).toBe(
       t("detail.webSearch.other", { count: tNumber(3) }),
@@ -188,7 +190,7 @@ describe("SessionDetail", () => {
     const session = makeSessionRow({
       totals: { ...EMPTY_TOTALS, subagentsSpawned: 4 },
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.getByTestId("server-tool-subagents").textContent).toBe(
       t("detail.subagents.other", { count: tNumber(4) }),
     );
@@ -205,7 +207,7 @@ describe("SessionDetail", () => {
         }),
       ],
     });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const row = screen.getAllByTestId("request-row")[0]!;
     expect(row.textContent).toContain(tCurrency(0.25));
     expect(row.textContent).toContain(tNumber(3));
@@ -213,7 +215,7 @@ describe("SessionDetail", () => {
 
   it('flags an error request with a badge and data-error="true"', () => {
     const session = makeSessionRow({ requests: [makeRequest({ isError: true })] });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const row = screen.getAllByTestId("request-row")[0]!;
     expect(row.getAttribute("data-error")).toBe("true");
     expect(within(row).getByTestId("request-error-badge").textContent).toBe(
@@ -223,21 +225,21 @@ describe("SessionDetail", () => {
 
   it("leaves a non-error request with no data-error attribute at all", () => {
     const session = makeSessionRow({ requests: [makeRequest({ isError: false })] });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const row = screen.getAllByTestId("request-row")[0]!;
     expect(row.hasAttribute("data-error")).toBe(false);
   });
 
   it("renders a placeholder for a request with no timestamp", () => {
     const session = makeSessionRow({ requests: [makeRequest({ timestamp: null })] });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const row = screen.getAllByTestId("request-row")[0]!;
     expect(row.textContent).toContain(t("detail.noTimestamp"));
   });
 
   it("reports requests started without a result instead of inventing rows", () => {
     const session = makeSessionRow({ openRequests: 2, requests: [makeRequest()] });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.getByTestId("open-request-note").textContent).toBe(
       t("detail.openRequests.other", { count: tNumber(2) }),
     );
@@ -246,7 +248,7 @@ describe("SessionDetail", () => {
 
   it("omits the open-request note when every request completed", () => {
     const session = makeSessionRow({ openRequests: 0, requests: [makeRequest()] });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     expect(screen.queryByTestId("open-request-note")).toBeNull();
   });
 
@@ -267,7 +269,7 @@ describe("SessionDetail", () => {
       costMicroUsd: 100_000,
     };
     const session = makeSessionRow({ models });
-    render(<SessionDetail session={session} />);
+    render(<SessionDetail session={session} rangeActive={false} />);
     const breakdown = screen.getByTestId("session-model-breakdown");
     expect(within(breakdown).getByTestId("session-model-row").textContent).toContain(
       "claude-opus-5",
@@ -283,7 +285,7 @@ describe("SessionDetail", () => {
           { name: "Edit", calls: 1 },
         ],
       });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       const chips = screen.getAllByTestId("tool-chip");
       // DOM order IS the rank (S12 plan §2 Q4) -- never re-sorted here.
       expect(chips.map((c) => c.getAttribute("data-tool"))).toEqual(["Bash", "Read", "Edit"]);
@@ -291,7 +293,7 @@ describe("SessionDetail", () => {
 
     it("renders the chips as list items inside a labelled list", () => {
       const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       const list = screen.getByTestId("tool-chip-list");
       expect(list.tagName).toBe("UL");
       expect(list.hasAttribute("aria-labelledby")).toBe(true);
@@ -301,7 +303,7 @@ describe("SessionDetail", () => {
 
     it("states that these are call counts and not a cost attribution", () => {
       const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       expect(screen.getByTestId("tool-usage-note").textContent).toBe(t("detail.tools.note"));
     });
 
@@ -312,7 +314,7 @@ describe("SessionDetail", () => {
           { name: "Read", calls: 5 },
         ],
       });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       const section = screen.getByTestId("tool-usage");
       expect(section.textContent).not.toContain("%");
     });
@@ -322,7 +324,7 @@ describe("SessionDetail", () => {
       // correct, not the translated-text trap (LEARNINGS).
       const mcpName = "mcp__example-server__list_items";
       const session = makeSessionRow({ toolUses: [{ name: mcpName, calls: 3 }] });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       const chip = screen.getByTestId("tool-chip");
       expect(chip.querySelector(".tool-chip__name")!.textContent).toBe(mcpName);
       expect(chip.hasAttribute("title")).toBe(false);
@@ -330,10 +332,24 @@ describe("SessionDetail", () => {
 
     it("shows an explicit empty state for a session with no tool calls, and no note", () => {
       const session = makeSessionRow({ toolUses: [] });
-      render(<SessionDetail session={session} />);
+      render(<SessionDetail session={session} rangeActive={false} />);
       expect(screen.getByTestId("tool-usage-empty").textContent).toBe(t("detail.tools.empty"));
       expect(screen.queryByTestId("tool-usage-note")).toBeNull();
       expect(screen.queryByTestId("tool-chip-list")).toBeNull();
+    });
+
+    it("labels the tool counts as unfiltered while a range is active (Q11)", () => {
+      const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
+      render(<SessionDetail session={session} rangeActive={true} />);
+      expect(screen.getByTestId("tool-usage-unfiltered").textContent).toBe(
+        t("detail.tools.unfiltered"),
+      );
+    });
+
+    it("renders no unfiltered note when no range is active", () => {
+      const session = makeSessionRow({ toolUses: [{ name: "Bash", calls: 1 }] });
+      render(<SessionDetail session={session} rangeActive={false} />);
+      expect(screen.queryByTestId("tool-usage-unfiltered")).toBeNull();
     });
   });
 });
