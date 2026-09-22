@@ -34,7 +34,7 @@
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/preact": "^3.2.4",
-    "@types/node": "^26.5.0",
+    "@types/node": "^26.6.2",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
