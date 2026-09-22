@@ -11,7 +11,12 @@
  */
 import { useState } from "preact/hooks";
 import { t, tDate, tNumber, tPlural } from "../i18n/index.js";
-import { PRICE_FIELDS, type PriceField, type PriceMicroUsdPerMtok } from "../model/prices.js";
+import {
+  PRICE_FIELD_UNIT,
+  PRICE_FIELDS,
+  type PriceField,
+  type PriceMicroUsdPerMtok,
+} from "../model/prices.js";
 import { formatPriceInput, parsePriceInput } from "../model/prices.js";
 import type { PriceDecode, PriceRow } from "../model/price-table.js";
 import type { ExportOutcome, ImportOutcome } from "../services/price-export.js";
@@ -82,7 +87,32 @@ function columnLabel(field: PriceField): string {
       return t("prices.columnCacheWrite1h");
     case "cacheRead":
       return t("prices.columnCacheRead");
+    case "webSearch":
+      return t("prices.columnWebSearch");
   }
+}
+
+/**
+ * S16 §5.4: the table-wide "USD per 1M tokens" line is false the moment the
+ * sixth, per-request column exists — replaced by a per-column unit label so
+ * the one column not denominated per Mtok stays unambiguous in both locales.
+ */
+function columnUnit(field: PriceField): string {
+  return PRICE_FIELD_UNIT[field] === "per-request"
+    ? t("prices.unitPerRequest")
+    : t("prices.unitPerMtok");
+}
+
+/** The column label plus its own unit line (S16 §5.4) — used by both the main and "other models" tables. */
+function ColumnHeaderContent({ field }: { readonly field: PriceField }) {
+  return (
+    <>
+      {columnLabel(field)}
+      <div class="price-table__column-unit" data-testid={`price-column-unit-${field}`}>
+        {columnUnit(field)}
+      </div>
+    </>
+  );
 }
 
 export function PriceTableEditor(props: PriceTableEditorProps) {
@@ -302,7 +332,7 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
             <th scope="col">{t("prices.columnModel")}</th>
             {PRICE_FIELDS.map((field) => (
               <th scope="col" key={field}>
-                {columnLabel(field)}
+                <ColumnHeaderContent field={field} />
               </th>
             ))}
             <th scope="col" aria-hidden="true" />
@@ -341,7 +371,7 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
                   <th scope="col">{t("prices.columnModel")}</th>
                   {PRICE_FIELDS.map((field) => (
                     <th scope="col" key={field}>
-                      {columnLabel(field)}
+                      <ColumnHeaderContent field={field} />
                     </th>
                   ))}
                   <th scope="col" aria-hidden="true" />

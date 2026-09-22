@@ -17,6 +17,7 @@ import { projectKey, resolveSessions, summarizeGaps } from "./project-assignment
 import { buildReport } from "./report.js";
 import { mergeSpaceIndexes, parseSpacesBytes } from "./spaces.js";
 import type { ParsedManifest } from "./project-types.js";
+import { recomputeSessions } from "./recompute.js";
 
 const repoRoot = process.cwd();
 const dir = process.env.CLAUDE3P_REFERENCE_DIR ?? join(repoRoot, "reference-material");
@@ -132,5 +133,28 @@ describe.skipIf(!existsSync(dir))("reference distribution", () => {
         expect(price![field], `${modelTotal.model}.${field}`).not.toBeNull();
       }
     }
+
+    // S16 plan §5.8: pins what the pipeline ACTUALLY yields for the own-price
+    // recomputation under the shipped defaults. Every model in this real tree
+    // has a complete shipped default (asserted just above), so
+    // `recomputeSessions` never excludes a session here — this is the "own
+    // price, 1h + web search column" and "5-minute bracket" figures, not a
+    // test of the exclusion rule (that is inert on real data and covered by
+    // synthetic fixtures instead, per LEARNINGS).
+    //
+    // These are the plan's §5.8 figures, derived independently during
+    // planning, and the pipeline now reproduces them to the micro-USD. It
+    // did NOT at first: an earlier `recomputeSessions` pooled the included
+    // sessions' token counts and priced the pool once, which is 22 µUSD
+    // below Q7's "sum of the included sessions' figures" on this tree (and
+    // 40 µUSD on the bracket). The gap was the rounding order, and it was
+    // the implementation's, not the plan's — the agreement below is the
+    // cross-check that says so.
+    const recomputation = recomputeSessions(report.sessions, DEFAULT_PRICES);
+    expect(recomputation.excluded.sessions).toBe(0);
+    expect(recomputation.listCostMicroUsd).toBe(report.totals.costMicroUsd);
+    expect(recomputation.costMicroUsd).toBe(1_448_439_674);
+    expect(recomputation.bracket).not.toBeNull();
+    expect(recomputation.bracket!.costMicroUsd).toBe(1_249_165_035);
   });
 });

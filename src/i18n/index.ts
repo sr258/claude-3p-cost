@@ -33,8 +33,12 @@ export function tNumber(value: number, options?: Intl.NumberFormatOptions): stri
   return formatNumber(locale.value, value, options);
 }
 
-export function tCurrency(value: number, currency?: string): string {
-  return formatCurrency(locale.value, value, currency);
+export function tCurrency(
+  value: number,
+  currency?: string,
+  options?: Intl.NumberFormatOptions,
+): string {
+  return formatCurrency(locale.value, value, currency, options);
 }
 
 export function tDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {

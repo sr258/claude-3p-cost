@@ -74,9 +74,11 @@ import {
   grouping,
   lastScanAt,
   modelPanelOpen,
+  ownPricesConfigured,
   priceOverrides,
   priceTable,
   rangeInvalid,
+  recomputation,
   rangePreset,
   report,
   resetAllPrices,
@@ -395,5 +397,26 @@ describe("price signals (S15 plan §5.4)", () => {
     await runScan();
 
     expect(priceOverrides.value.get(firstModel!)?.get("input")).toBe(1_234_000);
+  });
+
+  it("ownPricesConfigured is false with no overrides and true after one edit", () => {
+    expect(ownPricesConfigured.value).toBe(false);
+    const [firstModel] = DEFAULT_PRICES.keys();
+    setPrice(firstModel!, "input", 1_234_000);
+    expect(ownPricesConfigured.value).toBe(true);
+    resetAllPrices();
+    expect(ownPricesConfigured.value).toBe(false);
+  });
+
+  it("recomputation is null while no own price is configured", async () => {
+    vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
+    await runScan();
+    expect(report.value).not.toBeNull();
+    expect(ownPricesConfigured.value).toBe(false);
+    expect(recomputation.value).toBeNull();
+
+    const [firstModel] = DEFAULT_PRICES.keys();
+    setPrice(firstModel!, "input", 1_234_000);
+    expect(recomputation.value).not.toBeNull();
   });
 });

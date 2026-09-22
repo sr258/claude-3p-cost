@@ -9,6 +9,37 @@ Newest entry first.
 
 ---
 
+- **Two numbers that agree "to within a rounding error" have not agreed.** An
+  independently derived expected total and the pipeline's differed by 22 µUSD
+  on 1,413 USD; that was diagnosed as a language-level rounding artefact and
+  the measurement pinned over the prediction. It was a real deviation from an
+  explicit decision about where a sum is taken, and the correct implementation
+  reproduces the predicted figure exactly. Resolve such a residual to zero or
+  explain it to the unit; never pin the measurement over the prediction without
+  doing so.
+- **A rule stated as an exclusion rule can also be a rounding rule.** "The
+  session is the unit of exclusion, so it must also be the unit of summation"
+  reads as being about which rows contribute, and an implementation that pools
+  only the included rows' token counts and prices them once satisfies every
+  exclusion test while changing the arithmetic. Where a plan names a unit of
+  summation, pin it with a fixture on which two summation orders give different
+  numbers.
+- **A negative control on a denominator needs a non-zero numerator.** Swapping
+  the denominator of a deviation ratio passed cleanly because the fixture's
+  numerator was zero — 0/A equals 0/B for every A and B. Settle it by running
+  the control, not by reasoning about which field the patch changed.
+- **Optional props are how a plan's test silently goes unwritten.** Making a
+  new prop optional to avoid a call-site fan-out also leaves the component's
+  test files untouched, and with them the tests the plan wanted there. Nothing
+  goes red; the criterion simply has no unit coverage. When a session threads
+  new data into an existing component, the required-prop fan-out is the
+  mechanism that forces the tests to exist.
+- **`Object.hasOwn` is the only predicate that keeps a versioned JSON import
+  backward-compatible once `null` carries meaning.** Reading `raw[field]`, or
+  `raw[field] ?? null`, cannot distinguish absent from explicit `null`, so every
+  file the previous version exported fails validation with a corruption-shaped
+  error on a file the user can plainly read. Absent means "use the shipped
+  default"; present-`null` means "explicitly unknown".
 - **`JSON.stringify` cannot produce a `__proto__` key, so any
   prototype-pollution test built from an object literal is vacuous.** In a
   literal, `__proto__: {...}` sets the prototype instead of creating an own

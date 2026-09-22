@@ -5,6 +5,8 @@ import { locale } from "../state/app-state.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
 import type { CostTotals, GroupRow, SessionRow } from "../model/report-types.js";
 import { OverviewTable, type OverviewTableProps } from "./overview-table.js";
+import { formatCurrency } from "../i18n/format.js";
+import type { Recomputation } from "../model/recompute.js";
 
 function totalsOf(partial: Partial<CostTotals>): CostTotals {
   return { ...EMPTY_TOTALS, ...partial };
@@ -66,6 +68,10 @@ function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTabl
     expandedSessionKeys: EMPTY_EXPANDED,
     onToggleSession: NOOP_TOGGLE_SESSION,
     rangeActive: false,
+    ownPricesConfigured: false,
+    groupRecomputations: null,
+    totalRecomputation: null,
+    sessionRecomputations: null,
     ...overrides,
   };
 }
@@ -454,5 +460,223 @@ describe("OverviewTable", () => {
     render(<OverviewTable {...defaultProps({ groups })} />);
 
     expect(screen.getByTestId("cell-group-sessions").textContent).toBe("7");
+  });
+});
+
+function recomputation(overrides: Partial<Recomputation> = {}): Recomputation {
+  return {
+    models: [],
+    costMicroUsd: 900_000,
+    listCostMicroUsd: 1_000_000,
+    scopeListCostMicroUsd: 1_000_000,
+    deviationMicroUsd: -100_000,
+    deviationRatio: -0.1,
+    excluded: { sessions: 0, models: [], listCostMicroUsd: 0 },
+    bracket: null,
+    bracketUnavailableModels: [],
+    webSearchRequests: 0,
+    isEmpty: false,
+    ...overrides,
+  };
+}
+
+describe("OverviewTable — dual cost display (S16)", () => {
+  afterEach(() => {
+    locale.value = "en";
+  });
+
+  it("shows only the list column when no own price is configured", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+    render(<OverviewTable {...defaultProps({ groups, ownPricesConfigured: false })} />);
+    expect(screen.queryByTestId("cell-cost-own")).toBeNull();
+    expect(screen.queryByTestId("col-cost-own")).toBeNull();
+  });
+
+  it("shows both cost columns with the computed marker when an own price is configured", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 1,
+      }),
+    ];
+    const recomputations = new Map([["a", recomputation()]]);
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: recomputations,
+          totalRecomputation: recomputation(),
+        })}
+      />,
+    );
+    expect(screen.getByTestId("col-cost-own")).toBeTruthy();
+    const cell = screen.getAllByTestId("cell-cost-own")[0]!;
+    expect(cell.getAttribute("data-computed")).toBe("true");
+    expect(cell.textContent).toContain(formatCurrency("en", 0.9));
+  });
+
+  it("renders an excluded row's own-price cell as a marker, never blank and never a zero currency", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 1,
+      }),
+    ];
+    const fullyExcluded = recomputation({
+      costMicroUsd: 0,
+      excluded: { sessions: 1, models: ["model-x"], listCostMicroUsd: 1_000_000 },
+    });
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([["a", fullyExcluded]]),
+          totalRecomputation: fullyExcluded,
+        })}
+      />,
+    );
+    const cell = screen.getAllByTestId("cell-cost-own")[0]!;
+    const zeroCurrency = formatCurrency("en", 0);
+    expect(cell.textContent).not.toBe("");
+    expect(cell.textContent).not.toContain(zeroCurrency);
+  });
+
+  it("marks a group that keeps a figure while some of its sessions are excluded", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 4,
+      }),
+      groupRow({
+        key: "b",
+        label: { kind: "project", project: { kind: "named", spaceId: "b", name: "Beta" } },
+        sessionCount: 4,
+      }),
+    ];
+    const partial = recomputation({
+      excluded: { sessions: 1, models: ["model-x"], listCostMicroUsd: 250_000 },
+    });
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([
+            ["a", partial],
+            ["b", recomputation()],
+          ]),
+          totalRecomputation: partial,
+        })}
+      />,
+    );
+    const marks = screen.getAllByTestId("cell-cost-own-partial");
+    // Only the group with an exclusion is marked — a group with none is not.
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.getAttribute("data-excluded-sessions")).toBe("1");
+    // The figure itself is still shown; the marker adds to it, never replaces it.
+    const cell = screen.getAllByTestId("cell-cost-own")[0]!;
+    expect(cell.textContent).toContain(formatCurrency("en", 0.9));
+  });
+
+  it("renders the tfoot exclusion row with the excluded session count and list amount", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 2,
+      }),
+    ];
+    const totalRecompute = recomputation({
+      excluded: { sessions: 2, models: ["model-x"], listCostMicroUsd: 5_000_000 },
+    });
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([["a", totalRecompute]]),
+          totalRecomputation: totalRecompute,
+        })}
+      />,
+    );
+    const excludedRow = screen.getByTestId("excluded-row");
+    expect(within(excludedRow).getByTestId("cell-sessions").textContent).toBe("2");
+    expect(within(excludedRow).getByTestId("cell-cost").textContent).toContain(
+      formatCurrency("en", 5),
+    );
+    expect(within(excludedRow).getByTestId("cell-cost-own").textContent).toBe("—");
+    expect(within(excludedRow).getByTestId("cell-duration").textContent).toBe("—");
+  });
+
+  it("sets data-computed in both branches", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 1,
+      }),
+      groupRow({
+        key: "b",
+        label: { kind: "project", project: { kind: "named", spaceId: "b", name: "Beta" } },
+        sessionCount: 1,
+      }),
+    ];
+    const computed = recomputation();
+    const excluded = recomputation({
+      excluded: { sessions: 1, models: ["m"], listCostMicroUsd: 1 },
+    });
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([
+            ["a", computed],
+            ["b", excluded],
+          ]),
+          totalRecomputation: computed,
+        })}
+      />,
+    );
+    const cells = screen.getAllByTestId("cell-cost-own");
+    for (const cell of cells) {
+      expect(cell.getAttribute("data-computed")).toBe("true");
+    }
+  });
+
+  it("counts only the table's own header cells", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 1,
+      }),
+    ];
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          expandedKeys: new Set(["a"]),
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([["a", recomputation()]]),
+          totalRecomputation: recomputation(),
+        })}
+      />,
+    );
+    const headerCells = screen
+      .getByTestId("overview-table")
+      .querySelectorAll(":scope > thead > tr > th");
+    // project + sessions + requests + cost(list) + cost(own) + duration.
+    expect(headerCells.length).toBe(6);
   });
 });

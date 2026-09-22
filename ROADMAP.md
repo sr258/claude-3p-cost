@@ -67,7 +67,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S14 | ✅ Trend over time | US-5.2 | S13 |
 | **Phase 6 — Money** ||||
 | S15 | ✅ Price table: storage and editor | US-4.2 | S10 |
-| S16 | Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
+| S16 | ✅ Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
 | S17 | Budgets | US-6.1, US-6.2 | S13, S15 |
 | **Phase 7 — Output and liveness** ||||
 | S18 | Charts | US-3.3 | S14, S11 |
@@ -423,6 +423,10 @@ reference tree's total and is not a per-token price, so it has no column in the
 price table and will otherwise look like a rounding bug.
 
 ### S16 — Dual cost display + transparency
+
+**Status. Done 2026-09-22.** Plan: `docs/plans/S16-dual-cost-display.md`. The
+sixth price-table column (web search, USD per request) reopened S15's Q8 by
+explicit user decision during planning — see that plan's §0.4 and Q4.
 
 **Goal.** List price and own price, side by side.
 

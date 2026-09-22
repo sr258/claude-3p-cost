@@ -18,6 +18,7 @@ function price(input: number): ModelPrice {
     cacheWrite5m: (input * 5) / 4,
     cacheWrite1h: input * 2,
     cacheRead: input / 10,
+    webSearch: 10_000,
   };
 }
 
@@ -81,6 +82,7 @@ describe("resolvePriceTable", () => {
       cacheWrite5m: null,
       cacheWrite1h: null,
       cacheRead: null,
+      webSearch: null,
     });
   });
 });
@@ -133,7 +135,14 @@ describe("buildPriceRows", () => {
     const rows = buildPriceRows([modelTotal("hausmodell-x", 42)], DEFAULTS, new Map());
     const row = rows[0]!;
     expect(row.hasDefault).toBe(false);
-    for (const field of ["input", "output", "cacheWrite5m", "cacheWrite1h", "cacheRead"] as const) {
+    for (const field of [
+      "input",
+      "output",
+      "cacheWrite5m",
+      "cacheWrite1h",
+      "cacheRead",
+      "webSearch",
+    ] as const) {
       expect(row.cells[field].value).toBeNull();
     }
   });
@@ -300,5 +309,82 @@ describe("encodePriceJson / decodePriceJson", () => {
     // Nothing leaked onto Object.prototype via any route.
     expect(Object.prototype.hasOwnProperty.call({}, "input")).toBe(false);
     expect(({} as Record<string, unknown>)["input"]).toBeUndefined();
+  });
+
+  it("imports a v1 document with no webSearch field and applies the shipped default", () => {
+    // Written as a raw JSON string, deliberately (LEARNINGS: the
+    // JSON.stringify/__proto__ lesson generalises — a document built from an
+    // object literal may not contain what the test thinks it does. Here the
+    // risk is the OPPOSITE direction: a `webSearch: undefined` field in an
+    // object literal is dropped by `JSON.stringify` anyway, so this could
+    // look like it tests the absent-field path while actually testing
+    // nothing new. A raw string makes the precondition explicit and checked.)
+    const raw =
+      '{"format":"claude3pcost.prices","version":1,"currency":"USD",' +
+      '"unit":"USD per 1M tokens","prices":{' +
+      '"model-a": { "input": 9, "output": 25, "cacheWrite5m": 6.25, "cacheWrite1h": 10, "cacheRead": 0.5 }' +
+      "}}";
+
+    // Precondition: the field is genuinely absent, not merely falsy.
+    const reparsed = JSON.parse(raw) as { prices: Record<string, Record<string, unknown>> };
+    expect(Object.hasOwn(reparsed.prices["model-a"]!, "webSearch")).toBe(false);
+
+    const decoded = decodePriceJson(raw, DEFAULTS);
+    expect(decoded.kind).toBe("ok");
+    if (decoded.kind === "ok") {
+      const overrides = decoded.overrides.get("model-a");
+      // input WAS overridden (9 != default 5): a per-model override entry
+      // exists, but it must not carry a webSearch key — the shipped default
+      // applies, which is the resolution layer's job, not an override.
+      expect(overrides?.has("input")).toBe(true);
+      expect(overrides?.has("webSearch")).toBe(false);
+    }
+  });
+
+  it("distinguishes an absent webSearch field from an explicit null", () => {
+    const withNull = JSON.stringify({
+      format: "claude3pcost.prices",
+      version: 2,
+      currency: "USD",
+      unit: "USD per 1M tokens",
+      prices: {
+        "model-a": {
+          input: 5,
+          output: 25,
+          cacheWrite5m: 6.25,
+          cacheWrite1h: 10,
+          cacheRead: 0.5,
+          webSearch: null,
+        },
+      },
+    });
+    const decoded = decodePriceJson(withNull, DEFAULTS);
+    expect(decoded.kind).toBe("ok");
+    if (decoded.kind === "ok") {
+      // An explicit null is an override recording "unknown" — never the
+      // shipped default, and never simply absent from the override map.
+      expect(decoded.overrides.get("model-a")?.has("webSearch")).toBe(true);
+      expect(decoded.overrides.get("model-a")?.get("webSearch")).toBeNull();
+    }
+  });
+
+  it("round-trips a v2 document through encode and decode", () => {
+    const overrides = overridesOf([["model-a", [["webSearch", 20_000]]]]);
+    const rows = buildPriceRows([modelTotal("model-a", 10)], DEFAULTS, overrides).filter(
+      (r) => r.model === "model-a",
+    );
+    const json = encodePriceJson(rows);
+    const parsed = JSON.parse(json) as {
+      version: number;
+      prices: Record<string, { webSearch: number }>;
+    };
+    expect(parsed.version).toBe(2);
+    expect(parsed.prices["model-a"]!.webSearch).toBe(0.02); // 20_000 micro -> $0.02/request
+
+    const decoded = decodePriceJson(json, DEFAULTS);
+    expect(decoded.kind).toBe("ok");
+    if (decoded.kind === "ok") {
+      expect(decoded.overrides.get("model-a")?.get("webSearch")).toBe(20_000);
+    }
   });
 });

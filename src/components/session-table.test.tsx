@@ -5,6 +5,8 @@ import { locale } from "../state/app-state.js";
 import { EMPTY_TOTALS } from "../model/totals.js";
 import type { CostTotals, SessionRow } from "../model/report-types.js";
 import { SessionTable } from "./session-table.js";
+import { formatCurrency, formatPercent } from "../i18n/format.js";
+import type { SessionRecomputation } from "../model/recompute.js";
 
 function totalsOf(partial: Partial<CostTotals>): CostTotals {
   return {
@@ -456,5 +458,94 @@ describe("SessionTable", () => {
     const row = screen.getAllByTestId("session-row")[0]!;
     expect(row.getAttribute("data-partial")).toBe("false");
     expect(within(row).queryByTestId("partial-badge")).toBeNull();
+  });
+});
+
+/** S16 test 30: the own-price secondary line inside the existing cost cell (plan §2.2). */
+function sessionRecomputation(overrides: Partial<SessionRecomputation> = {}): SessionRecomputation {
+  return {
+    models: [],
+    costMicroUsd: 900_000,
+    listCostMicroUsd: 1_000_000,
+    scopeListCostMicroUsd: 1_000_000,
+    deviationMicroUsd: -100_000,
+    deviationRatio: -0.1,
+    excluded: { sessions: 0, models: [], listCostMicroUsd: 0 },
+    bracket: null,
+    bracketUnavailableModels: [],
+    webSearchRequests: 0,
+    isEmpty: false,
+    sessionExcluded: false,
+    ...overrides,
+  };
+}
+
+describe("SessionTable - own price secondary line (S16)", () => {
+  afterEach(() => {
+    locale.value = "en";
+  });
+
+  const sessions = [
+    sessionRow({ sessionId: "s1", totals: totalsOf({ costMicroUsd: 1_000_000 }) }),
+    sessionRow({ sessionId: "s2", totals: totalsOf({ costMicroUsd: 2_000_000 }) }),
+  ];
+
+  function renderWith(map: ReadonlyMap<string, SessionRecomputation> | null) {
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
+        sessionRecomputations={map}
+      />,
+    );
+  }
+
+  it("renders no secondary line at all when no own price is configured", () => {
+    renderWith(null);
+    expect(screen.queryByTestId("cell-cost-own")).toBeNull();
+  });
+
+  it("renders the own figure and a signed deviation per session", () => {
+    renderWith(new Map([["s1", sessionRecomputation()]]));
+    const rows = screen.getAllByTestId("session-row");
+    const own = within(rows[0]!).getByTestId("cell-cost-own");
+    expect(own.getAttribute("data-computed")).toBe("true");
+    // Derived from the formatters, never typed out: Intl emits U+00A0 and
+    // `no-irregular-whitespace` would not catch a typed one (LEARNINGS).
+    expect(own.textContent).toContain(formatCurrency("en", 0.9));
+    expect(own.textContent).toContain(formatPercent("en", -0.1, { signDisplay: "exceptZero" }));
+    // The list figure is still in the same cell, unchanged.
+    expect(within(rows[0]!).getByTestId("cell-cost").textContent).toContain(
+      formatCurrency("en", 1),
+    );
+    // A session with no entry in the map gets no secondary line.
+    expect(within(rows[1]!).queryByTestId("cell-cost-own")).toBeNull();
+  });
+
+  it("marks an excluded session instead of showing a zero-formatted figure", () => {
+    renderWith(
+      new Map([
+        [
+          "s1",
+          sessionRecomputation({
+            sessionExcluded: true,
+            costMicroUsd: 0,
+            listCostMicroUsd: 0,
+            deviationRatio: null,
+            excluded: { sessions: 1, models: ["model-x"], listCostMicroUsd: 1_000_000 },
+          }),
+        ],
+      ]),
+    );
+    const own = within(screen.getAllByTestId("session-row")[0]!).getByTestId("cell-cost-own");
+    expect(own.textContent).toBe(t("session.costOwnNotComputable"));
+    expect(own.textContent).not.toContain(formatCurrency("en", 0));
   });
 });

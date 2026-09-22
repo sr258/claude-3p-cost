@@ -44,6 +44,8 @@ import type {
   PriceOverrides,
   PriceTable,
 } from "../model/prices.js";
+import { recomputeReport, type ReportRecomputation } from "../model/recompute.js";
+import { summarizeCostBasis, type CostBasisSummary } from "../model/cost-basis.js";
 import { discover, type Discovery } from "../services/discovery.js";
 import { createFileSystem, type FileSystem } from "../services/filesystem.js";
 import { pickRootFolders, removeRoot } from "../services/folder-picker.js";
@@ -436,6 +438,30 @@ export const priceOverrides = signal<PriceOverrides>(loadPriceOverrides());
 
 export const priceTable = computed<PriceTable>(() =>
   resolvePriceTable(DEFAULT_PRICES, priceOverrides.value),
+);
+
+/**
+ * S16 Q1: the dual display is on when the user has actually entered at least
+ * one own rate — not merely because S15 ships 16 complete default rows. This
+ * is what makes US-4.1's "no price table configured" branch real: the
+ * first-run screen (no overrides at all) stays at five columns.
+ */
+export const ownPricesConfigured = computed<boolean>(() => priceOverrides.value.size > 0);
+
+/**
+ * S16 §4.4: a SIBLING signal to `report`, never a field on it — `buildReport`
+ * stays a pure function of scan input (NFR-2), and a keystroke in the price
+ * editor recomputes only this, never rebuilds the report.
+ */
+export const recomputation = computed<ReportRecomputation | null>(() =>
+  report.value === null || !ownPricesConfigured.value
+    ? null
+    : recomputeReport(report.value, priceTable.value),
+);
+
+/** US-4.1's "the app shows the costBasis and provider values found in the data" (Q5). */
+export const costBasis = computed<CostBasisSummary | null>(() =>
+  report.value === null ? null : summarizeCostBasis(report.value.sessions),
 );
 
 function commitOverrides(next: PriceOverrides): void {

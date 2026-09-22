@@ -15,6 +15,7 @@ function price(input: number): ModelPrice {
     cacheWrite5m: (input * 5) / 4,
     cacheWrite1h: input * 2,
     cacheRead: input / 10,
+    webSearch: 10_000,
   };
 }
 
@@ -152,6 +153,39 @@ describe("PriceTableEditor", () => {
       timeZone: "UTC",
     });
     expect(screen.getByTestId("price-as-of").textContent).toContain(expected);
+  });
+
+  it("renders six columns with a per-column unit, the sixth per request", () => {
+    render(<PriceTableEditor {...baseProps()} />);
+    const headerCells = screen
+      .getByTestId("price-table-editor")
+      .querySelector("table.price-table thead tr")!
+      .querySelectorAll(":scope > th");
+    // model column + 6 price columns + trailing reset column.
+    expect(headerCells.length).toBe(8);
+    for (const field of ["input", "output", "cacheWrite5m", "cacheWrite1h", "cacheRead"] as const) {
+      expect(screen.getByTestId(`price-column-unit-${field}`).textContent).not.toBe("");
+    }
+    const webSearchUnit = screen.getByTestId("price-column-unit-webSearch").textContent;
+    for (const field of ["input", "output", "cacheWrite5m", "cacheWrite1h", "cacheRead"] as const) {
+      expect(screen.getByTestId(`price-column-unit-${field}`).textContent).not.toBe(webSearchUnit);
+    }
+  });
+
+  it("resets the web-search price with the row and with the whole table", () => {
+    const overrides = new Map([
+      ["model-a", new Map<"webSearch", number | null>([["webSearch", 99_000]])],
+    ]);
+    const rows = buildPriceRows([modelTotal("model-a", 100)], DEFAULTS, overrides);
+    render(<PriceTableEditor {...baseProps({ rows })} />);
+
+    expect((screen.getByTestId("price-input-model-a-webSearch") as HTMLInputElement).value).toBe(
+      "0.099",
+    );
+    expect(screen.getByTestId("price-input-model-a-webSearch").getAttribute("data-edited")).toBe(
+      "true",
+    );
+    expect(screen.getByTestId("price-reset-model-a")).toBeTruthy();
   });
 
   it("the incomplete-model count is rendered through tNumber", () => {

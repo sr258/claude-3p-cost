@@ -45,6 +45,7 @@ import { localZoneOffset } from "./services/zone.js";
 import {
   activeRange,
   clearGroupScope,
+  costBasis,
   customFromDay,
   customToDay,
   exportPrices,
@@ -54,9 +55,11 @@ import {
   importPrices,
   importPricesFromFile,
   modelPanelOpen,
+  ownPricesConfigured,
   priceOverrides,
   rangeInvalid,
   rangePreset,
+  recomputation,
   report,
   resetAllPrices,
   resetPriceRow,
@@ -81,6 +84,7 @@ import {
   trendOpen,
   view,
 } from "./state/app-state.js";
+import { RecomputeNote } from "./components/recompute-note.js";
 
 export function App() {
   useEffect(() => {
@@ -207,6 +211,10 @@ export function App() {
                   expandedSessionKeys={expandedSessionKeysFor(currentGrouping)}
                   onToggleSession={(sessionId) => toggleSession(currentGrouping, sessionId)}
                   rangeActive={rangeActive}
+                  ownPricesConfigured={ownPricesConfigured.value}
+                  groupRecomputations={recomputation.value?.byGroupKey ?? null}
+                  totalRecomputation={recomputation.value?.total ?? null}
+                  sessionRecomputations={recomputation.value?.bySessionId ?? null}
                 />
                 {modelPanelOpen.value && panelBreakdown && panelTotals && (
                   <ModelPanel
@@ -218,6 +226,11 @@ export function App() {
                   />
                 )}
               </div>
+              <RecomputeNote
+                recomputation={recomputation.value?.total ?? null}
+                totalSessions={currentReport.sessions.length}
+                costBasis={costBasis.value}
+              />
               {trendSeries && (
                 <TrendSection
                   series={trendSeries}

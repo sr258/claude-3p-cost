@@ -294,6 +294,19 @@ The full picture is in `MAP.md` §4. The things that will bite you:
   is `apply: "serve"`, confines to the **realpath'd** target of the
   `reference-material` symlink, and never puts a path in a response body or a
   log line (NFR-6).
+- **`RequestRecord.usage` is NOT the request's token total — `modelUsage`
+  (`RequestRecord.models` / `ModelTotal`) is.** Measured over the whole
+  reference tree: `usage` behaves like the *last assistant message's* usage,
+  `modelUsage` aggregates every turn of the request, and the two agree on only
+  214 of 507 single-model result lines — `usage.input_tokens: 397` against
+  `modelUsage.inputTokens: 4308` on one `num_turns: 10` request. The decisive
+  check is that **Σ `modelUsage.costUSD` equals Σ `total_cost_usd` to the
+  micro-USD**; `usage` does not reconcile. S16's price recomputation
+  (`src/model/recompute.ts`) therefore reads only `ModelBreakdown`/`ModelTotal`,
+  never `TokenTotals`/`RequestRecord.usage` — and S11's token-category table
+  (which does read `usage`) and S16's recomputation table show DIFFERENT
+  numbers for the same session on purpose; they answer different questions and
+  must never share a display.
 
 ## Testing
 

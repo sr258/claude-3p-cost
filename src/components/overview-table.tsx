@@ -19,6 +19,7 @@ import { groupLabelText } from "./group-label.js";
 import { SessionTable } from "./session-table.js";
 import { compareSessionRows, type SessionSortField, type SortDirection } from "../model/report.js";
 import type { CostTotals, GroupRow } from "../model/report-types.js";
+import type { Recomputation, SessionRecomputation } from "../model/recompute.js";
 import type { Grouping } from "../state/app-state.js";
 
 export interface OverviewTableProps {
@@ -41,6 +42,14 @@ export interface OverviewTableProps {
   readonly onSelect: (groupKey: string) => void;
   /** Threaded to `SessionTable` -> `SessionDetail` (S13 plan §4.8, Q11). */
   readonly rangeActive: boolean;
+  /** S16 Q1: the dual column is on only once the user has entered an own price. */
+  readonly ownPricesConfigured: boolean;
+  /** Keyed by `GroupRow.key`, for both groupings (S16 §4.2 `ReportRecomputation.byGroupKey`). */
+  readonly groupRecomputations: ReadonlyMap<string, Recomputation> | null;
+  /** The report-wide recomputation, for the `<tfoot>` own-cost and exclusion rows. */
+  readonly totalRecomputation: Recomputation | null;
+  /** Threaded to `SessionTable` -> `SessionDetail` (S16 §2.2, §2.3). */
+  readonly sessionRecomputations: ReadonlyMap<string, SessionRecomputation> | null;
 }
 
 export function OverviewTable(props: OverviewTableProps) {
@@ -58,6 +67,10 @@ export function OverviewTable(props: OverviewTableProps) {
     expandedSessionKeys,
     onToggleSession,
     rangeActive,
+    ownPricesConfigured,
+    groupRecomputations,
+    totalRecomputation,
+    sessionRecomputations,
   } = props;
 
   return (
@@ -69,7 +82,14 @@ export function OverviewTable(props: OverviewTableProps) {
           </th>
           <th scope="col">{t("overview.columnSessions")}</th>
           <th scope="col">{t("overview.columnRequests")}</th>
-          <th scope="col">{t("overview.columnCost")}</th>
+          <th scope="col">
+            {ownPricesConfigured ? t("overview.columnCostList") : t("overview.columnCost")}
+          </th>
+          {ownPricesConfigured && (
+            <th scope="col" title={t("overview.columnCostOwnHint")} data-testid="col-cost-own">
+              {t("overview.columnCostOwn")} ⓘ
+            </th>
+          )}
           <th scope="col">{t("overview.columnDuration")}</th>
         </tr>
       </thead>
@@ -143,11 +163,58 @@ export function OverviewTable(props: OverviewTableProps) {
                 </td>
                 <td data-testid="cell-requests">{tNumber(group.totals.requests)}</td>
                 <td data-testid="cell-cost">{tCurrency(group.totals.costMicroUsd / 1e6)}</td>
+                {ownPricesConfigured &&
+                  (() => {
+                    const groupRecompute = groupRecomputations?.get(group.key) ?? null;
+                    const fullyExcluded =
+                      groupRecompute !== null &&
+                      group.sessionCount > 0 &&
+                      groupRecompute.excluded.sessions === group.sessionCount;
+                    // A group that keeps a figure while some of its sessions
+                    // were excluded must say so in the cell itself: the
+                    // figure covers fewer sessions than the list column
+                    // beside it, and the prose strip below the table reports
+                    // only the report-wide count. Silence here is exactly the
+                    // "silently partial own-price total" the roadmap rules
+                    // out (US-4.2's criterion, at group scope).
+                    const partiallyExcluded =
+                      groupRecompute !== null &&
+                      !fullyExcluded &&
+                      groupRecompute.excluded.sessions > 0;
+                    return (
+                      <td data-testid="cell-cost-own" data-computed="true">
+                        {fullyExcluded || groupRecompute === null ? (
+                          <span title={t("overview.costNotComputableTitle")}>
+                            {t("overview.costNotComputable")}
+                          </span>
+                        ) : (
+                          `≈ ${tCurrency(groupRecompute.costMicroUsd / 1e6)}`
+                        )}
+                        {partiallyExcluded && (
+                          <span
+                            data-testid="cell-cost-own-partial"
+                            data-excluded-sessions={groupRecompute.excluded.sessions}
+                            title={t(
+                              groupRecompute.excluded.sessions === 1
+                                ? "recompute.excluded.one"
+                                : "recompute.excluded.other",
+                              {
+                                count: tNumber(groupRecompute.excluded.sessions),
+                                total: tNumber(group.sessionCount),
+                              },
+                            )}
+                          >
+                            {" ⚠"}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })()}
                 <td data-testid="cell-duration">{tDuration(group.totals.durationMs)}</td>
               </tr>
               {isExpanded && (
                 <tr data-testid="session-panel-row" id={panelId}>
-                  <td colSpan={5}>
+                  <td colSpan={ownPricesConfigured ? 6 : 5}>
                     <div class="session-table__scroll" data-testid="session-table-scroll">
                       <SessionTable
                         groupKey={group.key}
@@ -163,6 +230,7 @@ export function OverviewTable(props: OverviewTableProps) {
                         expandedSessionKeys={expandedSessionKeys}
                         onToggleSession={onToggleSession}
                         rangeActive={rangeActive}
+                        sessionRecomputations={sessionRecomputations}
                       />
                     </div>
                   </td>
@@ -180,8 +248,35 @@ export function OverviewTable(props: OverviewTableProps) {
           </td>
           <td data-testid="cell-requests">{tNumber(totals.requests)}</td>
           <td data-testid="cell-cost">{tCurrency(totals.costMicroUsd / 1e6)}</td>
+          {ownPricesConfigured && (
+            <td data-testid="cell-cost-own" data-computed="true">
+              {totalRecomputation === null ? (
+                <span title={t("overview.costNotComputableTitle")}>
+                  {t("overview.costNotComputable")}
+                </span>
+              ) : (
+                `≈ ${tCurrency(totalRecomputation.costMicroUsd / 1e6)}`
+              )}
+            </td>
+          )}
           <td data-testid="cell-duration">{tDuration(totals.durationMs)}</td>
         </tr>
+        {ownPricesConfigured &&
+          totalRecomputation !== null &&
+          totalRecomputation.excluded.sessions > 0 && (
+            <tr data-testid="excluded-row" class="overview-table__excluded-row">
+              <td data-testid="cell-project">
+                {"⚠"} {t("overview.excludedRow")}
+              </td>
+              <td data-testid="cell-sessions">{tNumber(totalRecomputation.excluded.sessions)}</td>
+              <td data-testid="cell-requests" />
+              <td data-testid="cell-cost">
+                {tCurrency(totalRecomputation.excluded.listCostMicroUsd / 1e6)}
+              </td>
+              <td data-testid="cell-cost-own">—</td>
+              <td data-testid="cell-duration">—</td>
+            </tr>
+          )}
       </tfoot>
     </table>
   );

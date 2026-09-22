@@ -45,6 +45,7 @@ export function resolvePriceTable(defaults: PriceTable, overrides: PriceOverride
       cacheWrite5m: null,
       cacheWrite1h: null,
       cacheRead: null,
+      webSearch: null,
     };
     for (const field of PRICE_FIELDS) {
       if (override && override.has(field)) {
@@ -94,6 +95,7 @@ function buildRow(
     cacheWrite5m: { value: null, defaultValue: null, isEdited: false },
     cacheWrite1h: { value: null, defaultValue: null, isEdited: false },
     cacheRead: { value: null, defaultValue: null, isEdited: false },
+    webSearch: { value: null, defaultValue: null, isEdited: false },
   };
   let anyEdited = false;
   let allComplete = true;
@@ -181,7 +183,14 @@ export function resetAll(): PriceOverrides {
 }
 
 const PRICE_JSON_FORMAT = "claude3pcost.prices";
-const PRICE_JSON_VERSION = 1;
+/**
+ * S16 Q4b: bumped from 1 to 2 when `webSearch` was added as a sixth field.
+ * `decodePriceJson` below treats every version identically and does not
+ * range-check this number — a v1 file (missing `webSearch` on every model)
+ * imports cleanly because an ABSENT field means "use the shipped default",
+ * never "invalid" and never "null" (see the `Object.hasOwn` note below).
+ */
+const PRICE_JSON_VERSION = 2;
 /** Never a real own property of anything this module builds — defence against prototype pollution
  * from an imported file (S15 plan §5.3): these keys are dropped, not merely rejected. */
 const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
@@ -205,6 +214,7 @@ export function encodePriceJson(rows: readonly PriceRow[]): string {
       cacheWrite5m: null,
       cacheWrite1h: null,
       cacheRead: null,
+      webSearch: null,
     };
     for (const field of PRICE_FIELDS) {
       entry[field] = toDisplayUnit(row.cells[field].value);
@@ -273,6 +283,21 @@ export function decodePriceJson(text: string, defaults: PriceTable): PriceDecode
     const fieldOverrides = new Map<PriceField, PriceMicroUsdPerMtok | null>();
 
     for (const field of PRICE_FIELDS) {
+      // S16 Q4b, load-bearing: a field ABSENT from the raw object (true for
+      // every field a v1 export never wrote) means "use the shipped
+      // default" — no override is recorded for it at all. `rawPrice[field]`
+      // alone cannot tell "absent" from "present as `undefined`" apart from
+      // "present as JSON `null`" (both read back as `undefined` through
+      // plain property access is wrong — only `null` does; `undefined` is
+      // never valid JSON), so this MUST be `Object.hasOwn`, not a check on
+      // the read value. Without this rule, `isValidFieldValue(undefined)` is
+      // `false` and every v1 file (S15's own export format, and every file
+      // `e2e/prices.spec.ts` writes by hand) fails to import with
+      // `reason: "value"` — a corruption-shaped error for a perfectly good
+      // file that simply predates this field.
+      if (!Object.hasOwn(rawPrice, field)) {
+        continue;
+      }
       const rawValue = rawPrice[field];
       if (!isValidFieldValue(rawValue)) {
         return { kind: "invalid", reason: "value" };

@@ -73,11 +73,24 @@ export function formatNumber(
  * way to reproduce NFR-7's literal examples ("1.413,58 USD" / "1,413.58 USD")
  * is to format the plain number, then append U+00A0 and the currency code.
  * Do not "fix" this back to `style: "currency"`.
+ *
+ * `options` is an ADDITIVE passthrough (S16 plan §4.5, §1 Q6), the same shape
+ * `formatNumber`/`formatPercent` already have (LEARNINGS: "extend the
+ * existing formatter... rather than adding a sibling") — added so a
+ * deviation can render with `signDisplay: "exceptZero"` instead of a
+ * hand-built "+"/"−" prefix, which is how the U+00A0 trap above stays shut.
+ * Defaults first, `...options` last, so no existing call site changes.
  */
-export function formatCurrency(locale: Locale, value: number, currency = "USD"): string {
+export function formatCurrency(
+  locale: Locale,
+  value: number,
+  currency = "USD",
+  options?: Intl.NumberFormatOptions,
+): string {
   const number = formatNumber(locale, value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    ...options,
   });
   return `${number} ${currency}`;
 }

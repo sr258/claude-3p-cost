@@ -212,6 +212,16 @@ price table holding exactly the list prices, a recomputed total will sit ~0.3 %
 *below* the logged one for that reason alone. S16's transparency view should say
 so rather than letting a user hunt for a rounding error that is not there.
 
+**Correction (S16 plan §0.3, made in place per that plan's §5.9):** the
+paragraph above is wrong about the SIGN of the total. S16 §0.2 found an
+unrecoverable cache-write TTL ambiguity that dominates this web-search gap by
+a factor of about 7.5 and pushes the recomputed total ABOVE the logged one,
+not below: measured at +2.18 % without the web-search column and +2.47 % with
+it (S16 shipped a sixth column for web search after all, at the user's
+explicit choice — see that plan's Q4). The estimate in this paragraph — "~0.3 %
+below" — should not be trusted; the web-search figure itself (≈0.29 % of the
+tree) stands.
+
 ---
 
 ## 2. Design questions, all decided

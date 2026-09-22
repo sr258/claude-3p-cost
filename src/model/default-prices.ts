@@ -20,8 +20,20 @@
  * every base price below (each input is a whole multiple of 1_000_000), so
  * plain integer arithmetic is used rather than floating-point multiplication
  * — no rounding, no float artefact ever enters this table.
+ *
+ * S16 Q4 adds a sixth field, `webSearch`, shipped at a flat `10_000`
+ * micro-USD PER REQUEST (= $0.01/request) for all 16 rows — the same rate for
+ * every model, because the reference data gives no evidence it varies by
+ * model. Not derived from `input`: it is a different unit (per request, not
+ * per Mtok) and a coincidental multiplier here would be exactly the kind of
+ * derived-looking-but-arbitrary number this table otherwise avoids.
  */
-import type { ModelPrice, PriceMicroUsdPerMtok, PriceTable } from "./prices.js";
+import type {
+  ModelPrice,
+  PriceMicroUsdPerMtok,
+  PriceMicroUsdPerRequest,
+  PriceTable,
+} from "./prices.js";
 
 /**
  * ISO day string, not a `Date` — `src/model/` has no clock, and a plain
@@ -30,6 +42,9 @@ import type { ModelPrice, PriceMicroUsdPerMtok, PriceTable } from "./prices.js";
  * below edits this constant in the same commit.
  */
 export const DEFAULT_PRICES_AS_OF = "2026-09-21";
+
+/** S16 Q4: a flat $0.01/request for every model, shipped under the same "as of" date above. */
+const WEB_SEARCH_PRICE: PriceMicroUsdPerRequest = 10_000;
 
 interface BaseRate {
   readonly model: string;
@@ -55,6 +70,7 @@ function priceFromInput(input: PriceMicroUsdPerMtok, output: PriceMicroUsdPerMto
     cacheWrite5m: (input * 5) / 4, // 1.25x, exact for every input above
     cacheWrite1h: input * 2, // 2.00x
     cacheRead: input / 10, // 0.10x, exact for every input above
+    webSearch: WEB_SEARCH_PRICE,
   };
 }
 

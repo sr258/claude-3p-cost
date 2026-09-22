@@ -10,9 +10,16 @@
  * µUSD-per-token, so this is that figure scaled by 1e6 for sub-µUSD
  * precision — and the range is safe (plan §5.3 point 3). `null` always means
  * "unknown", never `0` (Q5).
+ *
+ * S16 Q4 adds a SIXTH field, `webSearch`, in a DIFFERENT unit: micro-USD PER
+ * REQUEST, not per million tokens. The stored integer is still `USD * 1e6`
+ * for all six fields, so `parsePriceInput`/`formatPriceInput` stay
+ * unit-agnostic below — only the amount arithmetic in `src/model/recompute.ts`
+ * treats `webSearch` differently (no division by token count).
  */
 
 export type PriceMicroUsdPerMtok = number;
+export type PriceMicroUsdPerRequest = number;
 
 export interface ModelPrice {
   readonly input: PriceMicroUsdPerMtok | null;
@@ -20,18 +27,39 @@ export interface ModelPrice {
   readonly cacheWrite5m: PriceMicroUsdPerMtok | null;
   readonly cacheWrite1h: PriceMicroUsdPerMtok | null;
   readonly cacheRead: PriceMicroUsdPerMtok | null;
+  /** S16 Q4. Per REQUEST, not per Mtok. */
+  readonly webSearch: PriceMicroUsdPerRequest | null;
 }
 
 export type PriceField = keyof ModelPrice;
 
-/** Fixes the column order everywhere a price is rendered or serialised. */
+/**
+ * Fixes the column order everywhere a price is rendered or serialised.
+ * `webSearch` is appended LAST, so the five existing columns keep their order
+ * (S16 plan §4.1) — every hand-built five-field object literal elsewhere in
+ * this codebase now needs a sixth key, which is expected `tsc` fallout, not
+ * scope creep (LEARNINGS).
+ */
 export const PRICE_FIELDS: readonly PriceField[] = [
   "input",
   "output",
   "cacheWrite5m",
   "cacheWrite1h",
   "cacheRead",
+  "webSearch",
 ];
+
+export type PriceUnit = "per-mtok" | "per-request";
+
+/** Drives the editor's per-column unit label and the recompute panel's price column. */
+export const PRICE_FIELD_UNIT: Readonly<Record<PriceField, PriceUnit>> = {
+  input: "per-mtok",
+  output: "per-mtok",
+  cacheWrite5m: "per-mtok",
+  cacheWrite1h: "per-mtok",
+  cacheRead: "per-mtok",
+  webSearch: "per-request",
+};
 
 /**
  * Model variant string -> field -> value. The "[1m]" suffix is NEVER

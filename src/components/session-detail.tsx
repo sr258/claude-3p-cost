@@ -14,6 +14,10 @@
 import { Fragment } from "preact";
 import { t, tCurrency, tDateTime, tDuration, tNumber, tPercent, tPlural } from "../i18n/index.js";
 import { costShare, unattributedCostMicroUsd } from "../model/report.js";
+import { summarizeCostBasis } from "../model/cost-basis.js";
+import type { SessionRecomputation } from "../model/recompute.js";
+import { RecomputeNote } from "./recompute-note.js";
+import { RecomputePanel } from "./recompute-panel.js";
 import type { RequestRecord } from "../model/audit-types.js";
 import type { SessionRow } from "../model/report-types.js";
 import { tokenCategories, type TokenCategoryKind } from "../model/token-categories.js";
@@ -24,6 +28,8 @@ export interface SessionDetailProps {
   readonly session: SessionRow;
   /** Whether a bounded date range is active (S13 plan §4.8, Q11). */
   readonly rangeActive: boolean;
+  /** Null when no own price is configured (S16 §2.3, US-4.3). */
+  readonly recomputation?: SessionRecomputation | null;
 }
 
 const CATEGORY_LABEL_KEY: Record<
@@ -48,9 +54,10 @@ function requestKey(request: RequestRecord, index: number): string {
 }
 
 export function SessionDetail(props: SessionDetailProps) {
-  const { session, rangeActive } = props;
+  const { session, rangeActive, recomputation = null } = props;
   const breakdown = tokenCategories(session.totals.tokens);
   const unattributed = unattributedCostMicroUsd(session.totals, session.models);
+  const scopedCostBasis = summarizeCostBasis([session]);
 
   const webSearchRequests = session.totals.tokens.webSearchRequests;
   const webFetchRequests = session.totals.tokens.webFetchRequests;
@@ -227,6 +234,9 @@ export function SessionDetail(props: SessionDetailProps) {
           {tPlural("detail.openRequests", session.openRequests)}
         </p>
       )}
+
+      <RecomputePanel recomputation={recomputation} unattributedCostMicroUsd={unattributed} />
+      <RecomputeNote recomputation={null} totalSessions={0} costBasis={scopedCostBasis} />
     </div>
   );
 }

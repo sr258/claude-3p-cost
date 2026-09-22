@@ -934,6 +934,15 @@ body {
   min-width: 6rem;
 }
 
+/* S16 §5.4: per-column unit label, replacing the old table-wide "USD per 1M
+   tokens" line now that the sixth (per-request) column exists. */
+.price-table__column-unit {
+  font-weight: 400;
+  font-size: var(--c3p-font-xxs);
+  color: var(--c3p-text-secondary);
+  white-space: nowrap;
+}
+
 .price-table__input {
   width: 100%;
   font: inherit;
@@ -986,4 +995,64 @@ body {
   border: none;
   cursor: pointer;
   color: var(--c3p-text-primary);
+}
+
+/* S16: dual cost display + transparency (recompute-note, recompute-panel, the
+   overview's own-price column). */
+.recompute-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--c3p-space-xxs);
+  font-size: var(--c3p-font-s);
+  color: var(--c3p-text-secondary);
+  margin-top: var(--c3p-space-xs);
+}
+
+.recompute-note__exclusion {
+  color: var(--c3p-warning-text);
+}
+
+.recompute-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--c3p-space-s);
+}
+
+.recompute-table th,
+.recompute-table td {
+  padding: var(--c3p-space-xs) var(--c3p-space-s);
+  text-align: left;
+  border-bottom: 1px solid var(--c3p-border);
+}
+
+.recompute-table--totals {
+  font-weight: 500;
+}
+
+.recompute-panel__cache-note {
+  font-size: var(--c3p-font-xs);
+  color: var(--c3p-text-secondary);
+  margin-top: var(--c3p-space-xs);
+}
+
+/* The overview/session own-price cell: `data-computed="true"` (never colour
+   alone, NFR-11) plus the "≈" glyph already in the text. */
+td[data-computed="true"] {
+  font-style: italic;
+}
+
+.overview-table__cost-not-computable,
+.session-table__cost-not-computable {
+  color: var(--c3p-text-secondary);
+  font-style: normal;
+}
+
+.overview-table__excluded-row {
+  color: var(--c3p-text-secondary);
+}
+
+.session-table__cost-own {
+  display: block;
+  font-size: var(--c3p-font-xs);
+  color: var(--c3p-text-secondary);
 }

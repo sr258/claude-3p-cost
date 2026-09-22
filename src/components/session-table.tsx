@@ -8,10 +8,13 @@
  * is S11's job.
  */
 import { Fragment } from "preact";
-import { t, tCurrency, tDateTime, tDuration, tNumber } from "../i18n/index.js";
+import { t, tCurrency, tDateTime, tDuration, tNumber, tPercent } from "../i18n/index.js";
 import { SessionDetail } from "./session-detail.js";
 import type { SessionRow } from "../model/report-types.js";
 import { sessionLastActivity, type SessionSortField, type SortDirection } from "../model/report.js";
+import type { SessionRecomputation } from "../model/recompute.js";
+
+const SIGNED: Intl.NumberFormatOptions = { signDisplay: "exceptZero" };
 
 /** The eight column headers, none of which take a placeholder. */
 type ColumnLabelKey =
@@ -40,6 +43,8 @@ export interface SessionTableProps {
   readonly onToggleSession: (sessionId: string) => void;
   /** Threaded to `SessionDetail`'s tool-usage-unfiltered note (S13 plan §4.8, Q11). */
   readonly rangeActive: boolean;
+  /** Keyed by `SessionRow.sessionId`. Null when no own price is configured (S16 §2.2). */
+  readonly sessionRecomputations?: ReadonlyMap<string, SessionRecomputation> | null;
 }
 
 interface ColumnDef {
@@ -77,6 +82,7 @@ export function SessionTable(props: SessionTableProps) {
     expandedSessionKeys,
     onToggleSession,
     rangeActive,
+    sessionRecomputations,
   } = props;
 
   return (
@@ -169,7 +175,37 @@ export function SessionTable(props: SessionTableProps) {
                   )}
                 </td>
                 <td data-testid="cell-requests">{tNumber(session.totals.requests)}</td>
-                <td data-testid="cell-cost">{tCurrency(session.totals.costMicroUsd / 1e6)}</td>
+                <td data-testid="cell-cost">
+                  {tCurrency(session.totals.costMicroUsd / 1e6)}
+                  {(() => {
+                    const own = sessionRecomputations?.get(session.sessionId) ?? null;
+                    if (own === null) {
+                      return null;
+                    }
+                    let text: string;
+                    if (own.sessionExcluded) {
+                      text = t("session.costOwnNotComputable");
+                    } else if (own.deviationRatio === null) {
+                      text = t("session.costOwnNoBase", {
+                        cost: tCurrency(own.costMicroUsd / 1e6),
+                      });
+                    } else {
+                      text = t("session.costOwn", {
+                        cost: tCurrency(own.costMicroUsd / 1e6),
+                        ratio: tPercent(own.deviationRatio, SIGNED),
+                      });
+                    }
+                    return (
+                      <span
+                        class="session-table__cost-own"
+                        data-testid="cell-cost-own"
+                        data-computed="true"
+                      >
+                        {text}
+                      </span>
+                    );
+                  })()}
+                </td>
                 <td data-testid="cell-output-tokens">
                   {tNumber(session.totals.tokens.outputTokens)}
                 </td>
@@ -184,7 +220,11 @@ export function SessionTable(props: SessionTableProps) {
               {isExpanded && (
                 <tr data-testid="session-detail-row">
                   <td colSpan={9} id={detailId}>
-                    <SessionDetail session={session} rangeActive={rangeActive} />
+                    <SessionDetail
+                      session={session}
+                      rangeActive={rangeActive}
+                      recomputation={sessionRecomputations?.get(session.sessionId) ?? null}
+                    />
                   </td>
                 </tr>
               )}
