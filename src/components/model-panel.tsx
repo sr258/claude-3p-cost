@@ -1,9 +1,16 @@
 /**
- * US-2.3's side panel (S10 plan §1, §2 Q1/Q2/Q5/Q11, §6.4). One breakdown on
- * screen at a time, following the caller's scope: global by default, or one
- * selected group. Session scope is deferred to S11 (plan §2 Q2) — this
- * component only ever receives a global or group-level `ModelBreakdown` /
- * `CostTotals` pair.
+ * US-2.3's model breakdown (S10 plan §1, §2 Q1/Q2/Q5/Q11, §6.4). One
+ * breakdown on screen at a time, following the caller's scope: global by
+ * default, or one selected group. Session scope is deferred to S11 (plan §2
+ * Q2) — this component only ever receives a global or group-level
+ * `ModelBreakdown` / `CostTotals` pair.
+ *
+ * S16a §5.5: lives on its own page (`page === "models"`), not docked beside
+ * the overview table — a `<section>`, not an `<aside>`, because on its own
+ * page it IS the main content. `onClose` and `onResetScope` are gone: a page
+ * cannot be closed, and the scope reset control moved to the context bar's
+ * `ScopeSelect`. What stays is the scope *label* — the page states what it
+ * is showing.
  *
  * Shares are computed against `ModelBreakdown.costMicroUsd` (the sum over
  * `modelUsage`), never against `totals.costMicroUsd` (the authoritative
@@ -29,44 +36,30 @@ export interface ModelPanelProps {
   /** The authoritative totals for the SAME scope. Used only for the unattributed row. */
   readonly totals: CostTotals;
   readonly scope: ModelScope;
-  /** Null when the scope is already "all" — the reset control is then absent. */
-  readonly onResetScope: (() => void) | null;
-  readonly onClose: () => void;
 }
 
 export function ModelPanel(props: ModelPanelProps) {
-  const { breakdown, totals, scope, onResetScope, onClose } = props;
+  const { breakdown, totals, scope } = props;
   const unattributed = unattributedCostMicroUsd(totals, breakdown);
   const scopeText = scope.kind === "all" ? t("models.scopeAll") : scope.label;
 
   return (
-    <aside
+    <section
       class="model-panel"
       data-testid="model-panel"
       data-scope={scope.kind}
       data-scope-key={scope.kind === "group" ? scope.label : undefined}
       aria-label={t("models.heading")}
     >
-      <div class="model-panel__header">
-        <h2 class="model-panel__heading">{t("models.heading")}</h2>
-        <button
-          type="button"
-          class="model-panel__close"
-          data-testid="model-panel-close"
-          aria-label={t("models.closePanel")}
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-
+      {/* No heading of its own: on the Models page `app.tsx` renders
+          `models.heading` as the page's <h1>, and a second rendering of the
+          same string one line below it was the S16a review's finding. The
+          section stays labelled for assistive technology through
+          `aria-label` above — the parallel change on `TrendSection`
+          (which lost its own heading with the disclosure) is what this
+          matches. */}
       <div class="model-panel__scope">
         <span data-testid="model-scope-label">{t("models.scopeLabel", { scope: scopeText })}</span>
-        {onResetScope !== null && (
-          <button type="button" data-testid="scope-reset" onClick={onResetScope}>
-            {t("models.clearScope")}
-          </button>
-        )}
       </div>
 
       {breakdown.models.length === 0 && unattributed === 0 ? (
@@ -112,6 +105,6 @@ export function ModelPanel(props: ModelPanelProps) {
           </tbody>
         </table>
       )}
-    </aside>
+    </section>
   );
 }

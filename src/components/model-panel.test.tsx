@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/preact";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { formatCurrency } from "../i18n/format.js";
 import { locale } from "../state/app-state.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
@@ -41,13 +41,7 @@ describe("ModelPanel", () => {
       model({ model: "claude-sonnet-5", costMicroUsd: 100_000_000 }),
     ]);
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     const rows = screen.getAllByTestId("model-row");
     expect(rows.map((r) => r.getAttribute("data-model"))).toEqual([
@@ -62,13 +56,7 @@ describe("ModelPanel", () => {
       model({ model: "claude-opus-5[1m]", costMicroUsd: 300_000_000 }),
     ]);
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     const rows = screen.getAllByTestId("model-row");
     expect(rows.map((r) => r.getAttribute("data-model"))).toEqual([
@@ -83,13 +71,7 @@ describe("ModelPanel", () => {
       model({ model: "b", costMicroUsd: 700 }),
     ]);
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     const shares = screen
       .getAllByTestId("model-share-bar")
@@ -103,13 +85,7 @@ describe("ModelPanel", () => {
       model({ model: "b", costMicroUsd: 216 }),
     ]);
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     const bar = screen.getAllByTestId("model-share-bar")[0]!;
     expect(bar.getAttribute("data-share")).toBe("0.7840");
@@ -118,13 +94,7 @@ describe("ModelPanel", () => {
   it("hides the share bar from assistive technology while the share stays as text", () => {
     const bd = breakdown([model({ model: "a", costMicroUsd: 1 })]);
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     const bar = screen.getByTestId("model-share-bar");
     expect(bar.getAttribute("aria-hidden")).toBe("true");
@@ -134,15 +104,7 @@ describe("ModelPanel", () => {
 
   it("renders an unattributed row with no share", () => {
     const bd = breakdown([model({ model: "a", costMicroUsd: 100 })]);
-    render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(140)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
-    );
+    render(<ModelPanel breakdown={bd} totals={totalsOf(140)} scope={{ kind: "all" }} />);
     const row = screen.getByTestId("model-unattributed-row");
     expect(within(row).getByTestId("cell-model-cost")).toBeTruthy();
     expect(within(row).queryByTestId("model-share-bar")).toBeNull();
@@ -150,15 +112,7 @@ describe("ModelPanel", () => {
 
   it("renders no unattributed row when the two totals agree", () => {
     const bd = breakdown([model({ model: "a", costMicroUsd: 100 })]);
-    render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(100)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
-    );
+    render(<ModelPanel breakdown={bd} totals={totalsOf(100)} scope={{ kind: "all" }} />);
     expect(screen.queryByTestId("model-unattributed-row")).toBeNull();
   });
 
@@ -168,37 +122,33 @@ describe("ModelPanel", () => {
         breakdown={EMPTY_MODEL_BREAKDOWN}
         totals={EMPTY_TOTALS}
         scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
       />,
     );
     expect(screen.getByTestId("model-empty")).toBeTruthy();
   });
 
-  it("renders the scope label and a reset control for a group scope", () => {
-    const onResetScope = vi.fn();
+  // S16a §7.1: the scope-reset control moved to the context bar's
+  // `ScopeSelect` — a page cannot be closed, and the reset affordance is now
+  // "choose the all-scope option there" (re-homed to
+  // scope-select.test.tsx's "calls onChange with null when the all-scope
+  // option is chosen"). What ModelPanel keeps is the scope LABEL.
+  it("renders the scope label for a group scope", () => {
     render(
       <ModelPanel
         breakdown={EMPTY_MODEL_BREAKDOWN}
         totals={EMPTY_TOTALS}
         scope={{ kind: "group", label: "Nebula Launch" }}
-        onResetScope={onResetScope}
-        onClose={() => {}}
       />,
     );
     expect(screen.getByTestId("model-scope-label").textContent).toContain("Nebula Launch");
-    screen.getByTestId("scope-reset").click();
-    expect(onResetScope).toHaveBeenCalled();
   });
 
-  it("renders no reset control for the global scope", () => {
+  it("renders no reset control — the panel no longer owns one (S16a)", () => {
     render(
       <ModelPanel
         breakdown={EMPTY_MODEL_BREAKDOWN}
         totals={EMPTY_TOTALS}
         scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
       />,
     );
     expect(screen.queryByTestId("scope-reset")).toBeNull();
@@ -208,13 +158,7 @@ describe("ModelPanel", () => {
     const bd = breakdown([model({ model: "a", costMicroUsd: 1_413_580_000 })]);
     locale.value = "en";
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(bd.costMicroUsd)}
-        scope={{ kind: "all" }}
-        onResetScope={null}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(bd.costMicroUsd)} scope={{ kind: "all" }} />,
     );
     expect(screen.getByTestId("cell-model-cost").textContent).toBe(formatCurrency("en", 1413.58));
   });
@@ -223,26 +167,14 @@ describe("ModelPanel", () => {
     const bd = breakdown([model({ model: "a", costMicroUsd: 100 })]);
     locale.value = "de";
     const { unmount } = render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(140)}
-        scope={{ kind: "group", label: "X" }}
-        onResetScope={() => {}}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(140)} scope={{ kind: "group", label: "X" }} />,
     );
     const deIds = screen.getByTestId("model-panel").querySelectorAll("[data-testid]").length;
     unmount();
 
     locale.value = "en";
     render(
-      <ModelPanel
-        breakdown={bd}
-        totals={totalsOf(140)}
-        scope={{ kind: "group", label: "X" }}
-        onResetScope={() => {}}
-        onClose={() => {}}
-      />,
+      <ModelPanel breakdown={bd} totals={totalsOf(140)} scope={{ kind: "group", label: "X" }} />,
     );
     const enIds = screen.getByTestId("model-panel").querySelectorAll("[data-testid]").length;
 

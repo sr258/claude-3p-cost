@@ -17,7 +17,7 @@ import { overviewTree } from "./fixtures/trees.js";
 
 async function gotoPrices(page: Page, locale: "de" | "en" = "en"): Promise<void> {
   await gotoApp(page, { tree: overviewTree, locale });
-  await page.getByTestId("view-prices").click();
+  await page.getByTestId("nav-prices").click();
   await page.getByTestId("price-table-editor").waitFor();
 }
 
@@ -33,7 +33,7 @@ test("edits a price, reloads, and the value persists", async ({ page }) => {
   // e2e convention already used elsewhere in this harness).
   await page.reload();
   await page.getByTestId("app-shell").waitFor();
-  await page.getByTestId("view-prices").click();
+  await page.getByTestId("nav-prices").click();
   await page.getByTestId("price-table-editor").waitFor();
 
   const reloadedInput = page.getByTestId("price-input-claude-opus-5-input");
@@ -206,6 +206,6 @@ test("runs the price editor in German", async ({ page }) => {
   await gotoPrices(page, "de");
 
   await expect(page.getByTestId("price-table-editor")).toBeVisible();
-  await expect(page.getByTestId("view-prices")).toHaveText(translate("de", "view.prices"));
+  await expect(page.getByTestId("nav-prices")).toHaveText(translate("de", "nav.prices"));
   await expect(page.getByTestId("price-reset-all")).toHaveText(translate("de", "prices.resetAll"));
 });

@@ -68,6 +68,8 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | **Phase 6 — Money** ||||
 | S15 | ✅ Price table: storage and editor | US-4.2 | S10 |
 | S16 | ✅ Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
+| S16a | ✅ UI/UX: navigation shell and scope | US-2.2 (amended), US-2.3, US-2.4, US-5.1, US-5.2, NFR-11 | S16 |
+| S16b | UI/UX: visual system | NFR-11, NFR-7 | S16a |
 | S17 | Budgets | US-6.1, US-6.2 | S13, S15 |
 | **Phase 7 — Output and liveness** ||||
 | S18 | Charts | US-3.3 | S14, S11 |
@@ -443,6 +445,62 @@ the recomputation, including the unknown-price exclusion path.
 **This is the session that justifies the app's existence** — `costBasis` is
 `list` in every observed record. Get the exclusion reporting right; a silently
 partial "own price" total is exactly the dishonesty the vision rules out.
+
+### S16a — UI/UX: navigation shell and scope
+
+**Status. Done 2026-09-23.** Plan: `docs/plans/S16a-navigation-shell.md`.
+
+**Goal.** A real page structure, and a scope the user can see and change.
+
+**Scope.** The two-chip `ViewSwitch` becomes a four-page navigation — Overview,
+Models, Trend, Prices — held in a `page` signal in `app-state.ts` (not
+persisted; persistence belongs to S21's settings, like `grouping`, the range and
+`trendGranularity` before it). The model breakdown and the trend move out of the
+overview onto their own pages, and the scope they follow moves with them: a
+persistent context bar carries grouping, date range and a named scope selector
+on every report page, writing the same `selectedGroups` signal the overview row
+already writes. The session-ID column is dropped — the ID survives in the
+session detail and as the title of an untitled session. Navigation sets
+`aria-current` and moves focus to the new page's heading.
+
+**Exit.** `npm test`, `npm run build`, `npm run lint`, `npm run format:check`,
+`npm run check:no-fake`, `npm run test:e2e`. A new `e2e/navigation.spec.ts`
+asserts that expansion, sort, scope, grouping and range survive a round trip
+through every page.
+
+**Amends US-2.2.** The session-ID column is removed from the acceptance
+criterion; the amendment was agreed in planning and is recorded in
+`REQUIREMENTS.md`, not worked around in code. US-2.3 gains a criterion rather
+than losing one: the selected scope must be visible and changeable wherever a
+scoped figure is shown.
+
+**Trap.** Seven of the eleven e2e specs move selectors. `grouping.spec.ts` is
+the heavy one: its model-panel open/close test is deleted outright because the
+control ceases to exist, and its four scope tests change what they drive. Before
+deleting any test, check what property it was guarding and where that property
+now lives — the scope-reset behaviour, for instance, re-homes to
+`scope-select.test.tsx`.
+
+### S16b — UI/UX: visual system
+
+**Goal.** One coherent set of controls instead of eight ad-hoc ones.
+
+**Scope.** A single `.c3p-btn` with variants replacing the eight near-identical
+button rules; one disclosure idiom with hover, active and `:focus-visible`
+states (before S16a there was not one `:focus-visible` rule in the stylesheet);
+sticky table headers; `font-variant-numeric: tabular-nums` on every numeric
+column; the `.page` wrapper finished so the toolbar and the table share an edge;
+a `visually-hidden` text alternative for every `⚠` / `ⓘ` / `≈` glyph that
+carries meaning only in a `title`; type scale and density; and **the headline
+total figure** the vision's five-second criterion asks for — the active scope's
+and period's total cost above the table, a second rendering of `report.totals`
+and not a new aggregation. Note that `CostTotals` carries no session count, so
+any session figure beside it comes from `report.sessions.length`, never a re-sum
+of the group counts.
+
+**Out of scope.** Dark mode: the token set is light-only with hardcoded
+neutrals, and re-deriving it with a contrast check is its own session. The full
+accessibility audit and the contrast measurement remain S21's.
 
 ### S17 — Budgets
 

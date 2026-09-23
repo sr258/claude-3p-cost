@@ -49,7 +49,44 @@ describe("SessionTable", () => {
     locale.value = "en";
   });
 
-  it("renders the eight US-2.2 columns", () => {
+  it("renders eight columns", () => {
+    const sessions = [sessionRow({ sessionId: "s1" })];
+    render(
+      <SessionTable
+        groupKey="p1"
+        groupLabel="Project One"
+        sessions={sessions}
+        sortField="cost"
+        sortDirection="desc"
+        onSort={NOOP_SORT}
+        expandedSessionKeys={EMPTY_EXPANDED}
+        onToggleSession={NOOP_TOGGLE_SESSION}
+        rangeActive={false}
+      />,
+    );
+    // LEARNINGS: a bare `querySelectorAll("th")` on this table also matches
+    // the nested detail tables' headers and inflates the count — scope to
+    // the outer table's own header row.
+    const headerCount = screen
+      .getByTestId("session-table")
+      .querySelectorAll(":scope > thead > tr > th").length;
+    expect(headerCount).toBe(8);
+
+    const row = screen.getAllByTestId("session-row")[0]!;
+    for (const testId of [
+      "cell-title",
+      "cell-requests",
+      "cell-cost",
+      "cell-output-tokens",
+      "cell-cache-read",
+      "cell-duration",
+      "cell-last-activity",
+    ]) {
+      expect(within(row).getByTestId(testId)).toBeTruthy();
+    }
+  });
+
+  it("renders no session-id cell", () => {
     const sessions = [sessionRow({ sessionId: "s1" })];
     render(
       <SessionTable
@@ -65,18 +102,7 @@ describe("SessionTable", () => {
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
-    for (const testId of [
-      "cell-session-id",
-      "cell-title",
-      "cell-requests",
-      "cell-cost",
-      "cell-output-tokens",
-      "cell-cache-read",
-      "cell-duration",
-      "cell-last-activity",
-    ]) {
-      expect(within(row).getByTestId(testId)).toBeTruthy();
-    }
+    expect(within(row).queryByTestId("cell-session-id")).toBeNull();
   });
 
   it("renders one row per session in the order given, and never re-sorts", () => {
@@ -121,7 +147,7 @@ describe("SessionTable", () => {
     expect(within(row).getByTestId("archived-badge")).toBeTruthy();
   });
 
-  it("renders the untitled placeholder for a session with no title", () => {
+  it("uses the session id as the title of an untitled session", () => {
     const sessions = [sessionRow({ sessionId: "s1", title: "" })];
     render(
       <SessionTable
@@ -137,8 +163,9 @@ describe("SessionTable", () => {
       />,
     );
     const row = screen.getAllByTestId("session-row")[0]!;
-    // Derived from the catalogue, never a quoted English string (LEARNINGS).
-    expect(within(row).getByTestId("cell-title").textContent).toBe(t("session.untitled"));
+    // S16a: the session-ID column is gone (US-2.2 amended) — the id
+    // survives as the title of an untitled session instead.
+    expect(within(row).getByTestId("cell-title").textContent).toBe("s1");
   });
 
   it("renders the no-activity label for a session with no activity timestamp", () => {

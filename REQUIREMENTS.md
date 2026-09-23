@@ -151,8 +151,11 @@ Acceptance criteria:
 find the expensive ones.**
 
 Acceptance criteria:
-- Clicking a project row expands an inline session table: session ID, title,
-  requests, cost, output tokens, cache-read, duration, last activity.
+- Clicking a project row expands an inline session table: title, requests, cost,
+  output tokens, cache-read, duration, last activity. The session's directory ID
+  is not a column of its own — it is shown in the session detail view and stands
+  in as the title of an untitled session, so a row can still be correlated with
+  its directory on disk.
 - Sessions can be sorted by cost, time, or title, ascending or descending.
 - Archived sessions are visually distinct.
 - Multiple projects can be expanded at once; expansion state survives sorting.
@@ -167,6 +170,8 @@ Acceptance criteria:
 - Model variants are kept distinct: `claude-opus-5` and `claude-opus-5[1m]` are
   separate rows, never merged.
 - Available both globally and scoped to a selected project or session.
+- The selected scope is visible and changeable wherever a scoped figure is
+  shown, not only where it was selected.
 
 ### US-2.4 Grouping by connected folder `SHOULD`
 

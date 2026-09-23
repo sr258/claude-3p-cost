@@ -29,13 +29,13 @@ test("enters an own price, then shows both figures and a signed deviation", asyn
 
   // Enter an own price for claude-opus-5, different from its shipped default
   // ($5/Mtok), so a deviation actually exists.
-  await page.getByTestId("view-prices").click();
+  await page.getByTestId("nav-prices").click();
   const input = page.getByTestId("price-input-claude-opus-5-input");
   await input.fill("10");
   await input.press("Enter");
   await expect(input).toHaveAttribute("data-edited", "true");
 
-  await page.getByTestId("view-overview").click();
+  await page.getByTestId("nav-overview").click();
   await page.getByTestId("overview-table").waitFor();
 
   // The dual column is now present, and the own-price cell is marked as
@@ -61,7 +61,7 @@ test("enters an own price, then shows both figures and a signed deviation", asyn
 test("clears a price, then reports the exclusion in the overview", async ({ page }) => {
   await gotoOverview(page);
 
-  await page.getByTestId("view-prices").click();
+  await page.getByTestId("nav-prices").click();
 
   // First, enter SOME own price so the dual display turns on at all (Q1) —
   // for the "[1m]" variant, which nebula's session also uses.
@@ -77,7 +77,7 @@ test("clears a price, then reports the exclusion in the overview", async ({ page
   await outputInput.press("Enter");
   await expect(outputInput).toHaveValue("");
 
-  await page.getByTestId("view-overview").click();
+  await page.getByTestId("nav-overview").click();
   await page.getByTestId("overview-table").waitFor();
 
   // The exclusion is reported in the tfoot row and in the prose note.

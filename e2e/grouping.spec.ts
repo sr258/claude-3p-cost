@@ -151,6 +151,7 @@ test("the panel opens on the global scope and lists both model variants separate
   page,
 }) => {
   await gotoApp(page, { tree: groupingTree, locale: "en" });
+  await page.getByTestId("nav-models").click();
 
   const panel = page.getByTestId("model-panel");
   await expect(panel).toHaveAttribute("data-scope", "all");
@@ -169,6 +170,13 @@ test("selecting a group scopes the panel to that group", async ({ page }) => {
     `[data-testid="group-row"][data-group-key="${GROUPING_QUARTZ_SPACE_ID}"]`,
   );
   await quartzRow.getByTestId("scope-select").click();
+  await expect(quartzRow.getByTestId("scope-select")).toHaveAttribute("aria-pressed", "true");
+  await expect(quartzRow).toHaveAttribute("data-selected", "true");
+
+  // S16a: the model breakdown lives on its own page now. The scope set from
+  // the overview row's control is the SAME `selectedGroups` signal the
+  // Models page's context bar reads.
+  await page.getByTestId("nav-models").click();
 
   const panel = page.getByTestId("model-panel");
   await expect(panel).toHaveAttribute("data-scope", "group");
@@ -176,8 +184,6 @@ test("selecting a group scopes the panel to that group", async ({ page }) => {
   // group key -- `data-scope-key` therefore mirrors the label shown in
   // `model-scope-label`, not `GROUPING_QUARTZ_SPACE_ID`.
   await expect(panel).toHaveAttribute("data-scope-key", GROUPING_QUARTZ_NAME);
-  await expect(quartzRow.getByTestId("scope-select")).toHaveAttribute("aria-pressed", "true");
-  await expect(quartzRow).toHaveAttribute("data-selected", "true");
 
   // Quartz's mix (sonnet only + an unattributed remainder) differs from the
   // global mix (also carries both opus variants) — proof the panel is really
@@ -198,23 +204,34 @@ test("selecting the same group again returns the panel to the global scope", asy
     `[data-testid="group-row"][data-group-key="${GROUPING_NEBULA_SPACE_ID}"]`,
   );
   await nebulaRow.getByTestId("scope-select").click();
+  await page.getByTestId("nav-models").click();
   await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "group");
 
+  await page.getByTestId("nav-overview").click();
   await nebulaRow.getByTestId("scope-select").click();
-  await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "all");
   await expect(nebulaRow.getByTestId("scope-select")).toHaveAttribute("aria-pressed", "false");
+  await page.getByTestId("nav-models").click();
+  await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "all");
 });
 
-test("the panel reset control returns to the global scope", async ({ page }) => {
+test("the context bar's scope select returns the panel to the global scope", async ({ page }) => {
+  // S16a: the model panel's own reset control (`scope-reset`) is gone — a
+  // page cannot be closed, and the reset affordance is now "choose the
+  // all-scope option in the context bar's scope select".
   await gotoApp(page, { tree: groupingTree, locale: "en" });
 
   const nebulaRow = page.locator(
     `[data-testid="group-row"][data-group-key="${GROUPING_NEBULA_SPACE_ID}"]`,
   );
   await nebulaRow.getByTestId("scope-select").click();
+  await page.getByTestId("nav-models").click();
   await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "group");
 
-  await page.getByTestId("scope-reset").click();
+  // Selected by VALUE, never by label text: the all-option's value is
+  // always the empty string (`ScopeSelect`'s `ALL_OPTION_VALUE`), which
+  // sidesteps the translated-text trap a quoted "All projects" would be
+  // (LEARNINGS).
+  await page.getByTestId("context-scope-select").locator("select").selectOption({ value: "" });
   await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "all");
 });
 
@@ -225,32 +242,31 @@ test("the panel scope is independent of which groups are expanded", async ({ pag
     `[data-testid="group-row"][data-group-key="${GROUPING_NEBULA_SPACE_ID}"]`,
   );
   await nebulaRow.getByTestId("group-disclosure").click();
-  await expect(page.getByTestId("model-panel")).toHaveAttribute("data-scope", "all");
+  await expect(nebulaRow.getByTestId("group-disclosure")).toHaveAttribute("aria-expanded", "true");
 
   const quartzRow = page.locator(
     `[data-testid="group-row"][data-group-key="${GROUPING_QUARTZ_SPACE_ID}"]`,
   );
   await quartzRow.getByTestId("scope-select").click();
+
+  // S16a: the model breakdown moved to its own page, which does not disturb
+  // the overview table's expansion state (a signal `runScan()`/navigation
+  // never touch) — checked by navigating there and back.
+  await page.getByTestId("nav-models").click();
   await expect(page.getByTestId("model-panel")).toHaveAttribute(
     "data-scope-key",
     GROUPING_QUARTZ_NAME,
   );
+
+  await page.getByTestId("nav-overview").click();
   // Nebula's disclosure is still open; selecting quartz did not touch it.
   await expect(nebulaRow.getByTestId("group-disclosure")).toHaveAttribute("aria-expanded", "true");
 });
 
-test("closing the panel removes it from the DOM and the toolbar control reopens it", async ({
-  page,
-}) => {
-  await gotoApp(page, { tree: groupingTree, locale: "en" });
-
-  await expect(page.getByTestId("model-panel")).toHaveCount(1);
-  await page.getByTestId("model-panel-close").click();
-  await expect(page.getByTestId("model-panel")).toHaveCount(0);
-
-  await page.getByTestId("model-panel-open").click();
-  await expect(page.getByTestId("model-panel")).toHaveCount(1);
-});
+// S16a: "closing the panel removes it from the DOM and the toolbar control
+// reopens it" is DELETED — the model panel is a page now
+// (`page === "models"`) and a page cannot be closed. The control it tested
+// (`model-panel-open`/`model-panel-close`) no longer exists.
 
 test("the gap indicators are visible on the main view with the fixture counts", async ({
   page,

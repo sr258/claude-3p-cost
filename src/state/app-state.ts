@@ -332,6 +332,17 @@ export function clearGroupScope(g: Grouping): void {
 }
 
 /**
+ * S16a §5.1: absolute scope assignment for the context bar's select — as
+ * opposed to `toggleGroupScope`'s same-key-toggles-off behaviour, which the
+ * overview row control keeps. Both write the same `selectedGroups` signal,
+ * so a scope set through either affordance is visible through the other
+ * (S16a §4).
+ */
+export function setGroupScope(g: Grouping, key: string | null): void {
+  selectedGroups.value = { ...selectedGroups.value, [g]: key };
+}
+
+/**
  * US-3.1's session detail disclosure (S11 plan §4.5). Mirrors
  * `expandedGroups` exactly, including the per-grouping prefix and the
  * "never pruned on rescan" property: `runScan()` never touches this signal,
@@ -366,13 +377,6 @@ export function expandedSessionKeysFor(g: Grouping): ReadonlySet<string> {
   return result;
 }
 
-/** US-2.3's side panel visibility (plan §2 Q7). Default open. */
-export const modelPanelOpen = signal<boolean>(true);
-
-export function setModelPanelOpen(open: boolean): void {
-  modelPanelOpen.value = open;
-}
-
 /** Each field's own default direction when it becomes newly active (plan §2 Q3). */
 const DEFAULT_SORT_DIRECTION: Record<SessionSortField, SortDirection> = {
   cost: "desc",
@@ -402,27 +406,25 @@ export function setSessionSort(field: SessionSortField): void {
  * signal is touched by `runScan()`, so both survive a rescan.
  */
 export const trendGranularity = signal<Granularity>("month"); // Q3: month by default
-export const trendOpen = signal<boolean>(true);
 
 export function setTrendGranularity(next: Granularity): void {
   trendGranularity.value = next;
 }
 
-export function setTrendOpen(open: boolean): void {
-  trendOpen.value = open;
-}
-
 /**
- * US-4.2's price table (S15 plan §5.4, Q3). A two-chip app-bar view switch
- * — `view` — not a settings screen (Q3): it is exactly the seed S21 grows
- * into full settings.
+ * S16a §5.1: the four report/settings pages. Replaces S15's two-value
+ * `View` — that type named the two-chip `ViewSwitch`, which this session
+ * deletes, so widening it in place would misdescribe what the signal is.
+ * Not persisted: persistence of preference signals belongs to the settings
+ * screen (S21), exactly like `grouping`, the date range and
+ * `trendGranularity` above. `runScan()` never touches it (CLAUDE.md rule 9).
  */
-export type View = "overview" | "prices";
+export type Page = "overview" | "models" | "trend" | "prices";
 
-export const view = signal<View>("overview");
+export const page = signal<Page>("overview");
 
-export function setView(next: View): void {
-  view.value = next;
+export function setPage(next: Page): void {
+  page.value = next;
 }
 
 /**

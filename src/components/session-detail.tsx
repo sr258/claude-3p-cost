@@ -69,6 +69,9 @@ export function SessionDetail(props: SessionDetailProps) {
     <div class="session-detail" data-testid="session-detail" data-session-id={session.sessionId}>
       <section class="session-detail__header">
         <h3>{t("detail.heading")}</h3>
+        <span data-testid="detail-session-id" class="session-table__id">
+          {t("detail.sessionId", { id: session.sessionId })}
+        </span>
         <span data-testid="detail-measured-cost">
           {t("detail.measuredCost", { cost: tCurrency(session.totals.costMicroUsd / 1e6) })}
         </span>

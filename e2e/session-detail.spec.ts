@@ -36,6 +36,10 @@ test("drilling project to session to detail shows the cost-driver categories", a
   );
   await expect(detail).toBeVisible();
 
+  // S16a: the session-ID column is gone from the session table (US-2.2
+  // amended) — the id survives here, in the detail header.
+  await expect(detail.getByTestId("detail-session-id")).toContainText(COST_DRIVERS_SESSION_ID);
+
   const categoryRows = detail.getByTestId("category-row");
   const kinds = await categoryRows.evaluateAll((rows) =>
     rows.map((r) => r.getAttribute("data-category")),

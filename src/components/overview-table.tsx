@@ -12,6 +12,14 @@
  * (LEARNINGS: `CostTotals` carries no session count, so any total is
  * necessarily derived — it must stay `totals`, never a re-sum of visible
  * rows).
+ *
+ * S16a §6.4: the `<tr onClick>` and its `closest("button")` guard are gone
+ * (D3) — the disclosure button now wraps the whole label, so the label cell
+ * is one hit target with a keyboard equivalent for free. The scope control
+ * is a SIBLING button, deliberately not nested inside the disclosure, and
+ * gains visible text (`scope.rowButton`) beside its glyph (D2) — it still
+ * writes the same `selectedGroups` signal the context bar's `ScopeSelect`
+ * does.
  */
 import { Fragment } from "preact";
 import { t, tCompareText, tCurrency, tDuration, tNumber } from "../i18n/index.js";
@@ -107,17 +115,7 @@ export function OverviewTable(props: OverviewTableProps) {
             : t("models.selectScope", { name: label.text });
           return (
             <Fragment key={group.key}>
-              <tr
-                data-testid="group-row"
-                data-group-key={group.key}
-                data-selected={isSelected}
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest("button") !== null) {
-                    return;
-                  }
-                  onToggle(group.key);
-                }}
-              >
+              <tr data-testid="group-row" data-group-key={group.key} data-selected={isSelected}>
                 <th scope="row" data-testid="cell-project">
                   <button
                     type="button"
@@ -128,20 +126,20 @@ export function OverviewTable(props: OverviewTableProps) {
                     onClick={() => onToggle(group.key)}
                   >
                     {isExpanded ? "▼" : "▶"}{" "}
-                  </button>
-                  {label.parts.map((part, index) => (
-                    <span key={index}>
-                      {index > 0 && ", "}
-                      <span data-testid="folder-part" title={part.title}>
-                        {part.text}
-                      </span>
-                      {part.isNetworkDrive && (
-                        <span class="network-drive-badge" data-testid="network-drive-badge">
-                          {t("overview.networkDrive")}
+                    {label.parts.map((part, index) => (
+                      <span key={index}>
+                        {index > 0 && ", "}
+                        <span data-testid="folder-part" title={part.title}>
+                          {part.text}
                         </span>
-                      )}
-                    </span>
-                  ))}
+                        {part.isNetworkDrive && (
+                          <span class="network-drive-badge" data-testid="network-drive-badge">
+                            {t("overview.networkDrive")}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </button>
                   <button
                     type="button"
                     class="scope-select"
@@ -150,7 +148,7 @@ export function OverviewTable(props: OverviewTableProps) {
                     aria-label={scopeLabel}
                     onClick={() => onSelect(group.key)}
                   >
-                    {isSelected ? "✓" : "○"}
+                    {isSelected ? "✓" : "○"} {t("scope.rowButton")}
                   </button>
                 </th>
                 <td data-testid="cell-group-sessions">

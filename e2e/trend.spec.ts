@@ -3,6 +3,11 @@
  * from `translate()` / `formatCurrency` / `formatDate` / `formatPercent` —
  * never a quoted English string (LEARNINGS: the translated-text trap in its
  * easiest disguise).
+ *
+ * S16a: the trend lives on its own page (`nav-trend`), not below the
+ * overview table — every test below gains a navigation. No new date
+ * assertions are introduced (LEARNINGS: `localZoneOffset` in an e2e test
+ * means the CI machine's zone).
  */
 import { expect, test, type Page } from "@playwright/test";
 import { formatCurrency } from "../src/i18n/format.js";
@@ -17,6 +22,7 @@ async function switchToDayGranularity(page: Page): Promise<void> {
   await page.locator('[data-testid="trend-granularity"] [data-granularity="day"]').click();
 }
 
+/** Must be called while on the Overview page — the row control lives there. */
 async function selectProjectA(page: Page): Promise<void> {
   await page
     .locator(`[data-testid="group-row"][data-group-key="${TREND_SPACE_ID}"]`)
@@ -26,6 +32,7 @@ async function selectProjectA(page: Page): Promise<void> {
 
 test("the trend table appears with month granularity and switches to days", async ({ page }) => {
   await gotoApp(page, { tree: trendTree, locale: "en" });
+  await page.getByTestId("nav-trend").click();
 
   const table = page.getByTestId("trend-table");
   await expect(table).toBeVisible();
@@ -46,6 +53,7 @@ test("the trend table appears with month granularity and switches to days", asyn
 
 test("a gap day appears as a zero row", async ({ page }) => {
   await gotoApp(page, { tree: trendTree, locale: "en" });
+  await page.getByTestId("nav-trend").click();
   await switchToDayGranularity(page);
 
   const gapRow = trendRow(page, TREND_GAP_DAY_KEY);
@@ -60,13 +68,18 @@ test("selecting a project row scopes the trend, and clearing it restores all pro
   page,
 }) => {
   await gotoApp(page, { tree: trendTree, locale: "en" });
+  await page.getByTestId("nav-trend").click();
 
   // Global scope: April's month bucket is A's 10+20+30 plus B's 5 = 65.00.
   await expect(trendRow(page, "2026-04").getByTestId("trend-cell-cost")).toHaveText(
     formatCurrency("en", 65.0),
   );
 
+  // S16a: the scope control that drives this lives on the Overview row —
+  // both affordances write the same `selectedGroups` signal.
+  await page.getByTestId("nav-overview").click();
   await selectProjectA(page);
+  await page.getByTestId("nav-trend").click();
 
   // Scoped to project A only: April's bucket drops to 60.00 (B's request no
   // longer counted), while May (only ever A's) stays at 40.00.
@@ -76,18 +89,20 @@ test("selecting a project row scopes the trend, and clearing it restores all pro
   await expect(trendRow(page, "2026-05").getByTestId("trend-cell-cost")).toHaveText(
     formatCurrency("en", 40.0),
   );
-  await expect(page.getByTestId("trend-scope-reset")).toBeVisible();
 
-  await page.getByTestId("trend-scope-reset").click();
+  // S16a: the trend's own scope-reset control is gone — the context bar's
+  // scope select is the reset affordance now, chosen by VALUE (never by
+  // label text, LEARNINGS): the all-option's value is always "".
+  await page.getByTestId("context-scope-select").locator("select").selectOption({ value: "" });
 
   await expect(trendRow(page, "2026-04").getByTestId("trend-cell-cost")).toHaveText(
     formatCurrency("en", 65.0),
   );
-  await expect(page.getByTestId("trend-scope-reset")).toHaveCount(0);
 });
 
 test("applying a date range shortens the trend and pads to the range ends", async ({ page }) => {
   await gotoApp(page, { tree: trendTree, locale: "en" });
+  await page.getByTestId("nav-trend").click();
   await switchToDayGranularity(page);
 
   await page.locator('[data-testid="range-preset"][data-preset="custom"]').click();

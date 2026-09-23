@@ -9,6 +9,31 @@ Newest entry first.
 
 ---
 
+- **A testid is one app-wide namespace, not a per-component one.** Two
+  components defined in different files can render on the same page, and
+  `getByTestId` has no scope — so the obvious name for a new control is often
+  already taken by the existing control it will sit beside, and the collision
+  shows up only where both render at once. Unit tests render one component at a
+  time and never see it. Grep the whole of `src/` and `e2e/` for a testid
+  before choosing it.
+- **A test file that renders the whole app inherits every child's async side
+  effects.** A fire-and-forget scan on mount writes module-level signals, so a
+  mock that resolves lands those writes at an unpredictable later point —
+  inside a *different* test in the same file. A never-settling mock is the
+  right tool where the test makes no claim about the async path, but state that
+  at the mock, and check what the function writes *before* its suspension
+  point, because those writes still happen.
+- **`@testing-library/preact`'s `render` is `act`-wrapped; a raw DOM `.click()`
+  is not.** An effect assertion straight after `render` sees effects already
+  flushed, so a first-mount guard is testable synchronously; the same assertion
+  after a click must go through `waitFor` or `fireEvent`. Backwards, this gives
+  either a flaky test or a permanently green one — and the fix is never to
+  change `useEffect` to `useLayoutEffect` to suit a test.
+- **A new architecture rule in `CLAUDE.md` is a claim that needs a test.** A
+  durable rule about what a function does *not* do is exactly the statement
+  nothing goes red for when it stops being true. Whenever a session writes one,
+  ask which test would fail if the behaviour changed, and add it where the
+  answer is none.
 - **Two numbers that agree "to within a rounding error" have not agreed.** An
   independently derived expected total and the pipeline's differed by 22 µUSD
   on 1,413 USD; that was diagnosed as a language-level rounding artefact and

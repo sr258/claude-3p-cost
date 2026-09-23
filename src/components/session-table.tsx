@@ -6,6 +6,12 @@
  *
  * Session rows are NOT clickable and carry no navigation (S9 plan §3) — that
  * is S11's job.
+ *
+ * S16a §6.2: the session-ID column is gone — a session directory id told
+ * nobody anything as a column. It survives as the title of an untitled
+ * session (below) and as a monospace line in `SessionDetail`'s header. The
+ * detail row's `colSpan` is derived from `COLUMNS.length` rather than
+ * hardcoded, so the next column change cannot silently desynchronise it.
  */
 import { Fragment } from "preact";
 import { t, tCurrency, tDateTime, tDuration, tNumber, tPercent } from "../i18n/index.js";
@@ -19,7 +25,6 @@ const SIGNED: Intl.NumberFormatOptions = { signDisplay: "exceptZero" };
 /** The eight column headers, none of which take a placeholder. */
 type ColumnLabelKey =
   | "session.columnDisclosure"
-  | "session.columnId"
   | "session.columnTitle"
   | "session.columnRequests"
   | "session.columnCost"
@@ -62,7 +67,6 @@ const COLUMNS: readonly ColumnDef[] = [
     labelKey: "session.columnDisclosure",
     hiddenLabel: true,
   },
-  { field: null, testId: "cell-session-id", labelKey: "session.columnId" },
   { field: "title", testId: "cell-title", labelKey: "session.columnTitle" },
   { field: "requests", testId: "cell-requests", labelKey: "session.columnRequests" },
   { field: "cost", testId: "cell-cost", labelKey: "session.columnCost" },
@@ -153,11 +157,12 @@ export function SessionTable(props: SessionTableProps) {
                     {isExpanded ? "▼" : "▶"}
                   </button>
                 </td>
-                <td data-testid="cell-session-id" class="session-table__id">
-                  {session.sessionId}
-                </td>
                 <td data-testid="cell-title">
-                  {session.title === "" ? t("session.untitled") : session.title}
+                  {session.title === "" ? (
+                    <span class="session-table__id">{session.sessionId}</span>
+                  ) : (
+                    session.title
+                  )}
                   {session.isArchived && (
                     <span data-testid="archived-badge">{t("session.archived")}</span>
                   )}
@@ -219,7 +224,7 @@ export function SessionTable(props: SessionTableProps) {
               </tr>
               {isExpanded && (
                 <tr data-testid="session-detail-row">
-                  <td colSpan={9} id={detailId}>
+                  <td colSpan={COLUMNS.length} id={detailId}>
                     <SessionDetail
                       session={session}
                       rangeActive={rangeActive}

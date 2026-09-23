@@ -45,10 +45,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     const rows = screen.getAllByTestId("trend-row");
@@ -71,10 +68,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     const rows = screen.getAllByTestId("trend-row");
@@ -90,10 +84,7 @@ describe("TrendSection", () => {
         series={series([])}
         granularity="month"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={onGranularity}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     const group = screen.getByTestId("trend-granularity");
@@ -116,10 +107,7 @@ describe("TrendSection", () => {
         series={withUndated}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.getByTestId("trend-undated")).toBeTruthy();
@@ -131,10 +119,7 @@ describe("TrendSection", () => {
         series={withoutUndated}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.queryByTestId("trend-undated")).toBeNull();
@@ -147,10 +132,7 @@ describe("TrendSection", () => {
         series={unfilled}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.getByTestId("trend-unfilled")).toBeTruthy();
@@ -162,10 +144,7 @@ describe("TrendSection", () => {
         series={filled}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.queryByTestId("trend-unfilled")).toBeNull();
@@ -181,10 +160,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     const row = screen.getByTestId("trend-row");
@@ -209,10 +185,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     const rows = screen.getAllByTestId("trend-row");
@@ -236,40 +209,25 @@ describe("TrendSection", () => {
     expect(upText).not.toBe(formatPercent("en", 0.5));
   });
 
-  it("renders no controls or table while collapsed, but keeps the disclosure reachable", () => {
-    const s = series([point({ key: "2026-01-01", costMicroUsd: 1 })]);
-    render(
-      <TrendSection
-        series={s}
-        granularity="day"
-        scope={{ kind: "all" }}
-        open={false}
-        onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
-      />,
-    );
-    expect(screen.getByTestId("trend-disclosure").getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByTestId("trend-table")).toBeNull();
-    expect(screen.queryByTestId("trend-granularity")).toBeNull();
-  });
+  // S16a §7.1: the trend is a PAGE now (`page === "trend"`) — a page cannot
+  // be closed, so the collapsed state and its disclosure are gone entirely
+  // (re-homing table: "the property ceases to exist with the control;
+  // recorded here as a deliberate removal, not an oversight").
 
-  it("renders the scope label and a reset control for a group scope", () => {
-    const onResetScope = vi.fn();
+  // S16a §7.1: the scope-reset control moved to the context bar's
+  // `ScopeSelect` (re-homed to scope-select.test.tsx's "calls onChange with
+  // null when the all-scope option is chosen"). What TrendSection keeps is
+  // the scope LABEL.
+  it("renders the scope label for a group scope", () => {
     render(
       <TrendSection
         series={series([])}
         granularity="day"
         scope={{ kind: "group", label: "Nebula Launch" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={onResetScope}
       />,
     );
     expect(screen.getByTestId("trend-scope-label").textContent).toContain("Nebula Launch");
-    screen.getByTestId("trend-scope-reset").click();
-    expect(onResetScope).toHaveBeenCalled();
   });
 
   it("renders no reset control for the global scope", () => {
@@ -278,10 +236,7 @@ describe("TrendSection", () => {
         series={series([])}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.queryByTestId("trend-scope-reset")).toBeNull();
@@ -293,10 +248,7 @@ describe("TrendSection", () => {
         series={series([])}
         granularity="day"
         scope={{ kind: "all" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={null}
       />,
     );
     expect(screen.getByTestId("trend-empty")).toBeTruthy();
@@ -314,10 +266,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "group", label: "X" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={() => {}}
       />,
     );
     const deIds = screen.getByTestId("trend-section").querySelectorAll("[data-testid]").length;
@@ -329,10 +278,7 @@ describe("TrendSection", () => {
         series={s}
         granularity="day"
         scope={{ kind: "group", label: "X" }}
-        open={true}
         onGranularity={() => {}}
-        onToggleOpen={() => {}}
-        onResetScope={() => {}}
       />,
     );
     const enIds = screen.getByTestId("trend-section").querySelectorAll("[data-testid]").length;

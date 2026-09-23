@@ -219,6 +219,16 @@ claude-3p-cost/                        # repository root
 7. **No hardcoded user-facing strings.** Every one goes through `src/i18n/`.
 8. **Failures are collected, not thrown.** A bad file or line is recorded in a
    problem list and surfaced to the user; it never aborts a scan (NFR-3).
+9. **Navigation is a signal, pages are components.** The active page lives in
+   `state/app-state.ts` as `page` (`Page = "overview" | "models" | "trend" |
+   "prices"`, S16a) and is not persisted — persistence of preferences belongs
+   to the settings screen (S21), like `grouping`, the date range and
+   `trendGranularity` before it. `runScan()` never touches it. A page change
+   resets nothing: expansion, session expansion, sort, scope, grouping and
+   range are all signals that survive both a navigation and a rescan. The
+   model breakdown and the trend are pages, not panels docked to the overview
+   (S16a supersedes S10's "beside the table" placement), and the scope they
+   follow is set from a context bar visible on every report page.
 
 ## Data Model Essentials
 

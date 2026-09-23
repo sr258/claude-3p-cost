@@ -7,7 +7,7 @@
  * boundary `app-state.ts` imports them through, so `runScan`'s own logic is
  * exercised without a real filesystem or a real scan.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ALL_TIME, isAllTime } from "../model/date-range.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
 import type { Report } from "../model/report-types.js";
@@ -73,8 +73,8 @@ import {
   expandedSessions,
   grouping,
   lastScanAt,
-  modelPanelOpen,
   ownPricesConfigured,
+  page,
   priceOverrides,
   priceTable,
   rangeInvalid,
@@ -90,15 +90,14 @@ import {
   sessionSortField,
   setCustomDays,
   setGrouping,
-  setModelPanelOpen,
+  setGroupScope,
+  setPage,
   setPrice,
   setRangePreset,
   setSessionSort,
-  setView,
   toggleGroup,
   toggleGroupScope,
   toggleSession,
-  view,
 } from "./app-state.js";
 
 describe("runScan", () => {
@@ -216,13 +215,98 @@ describe("selectedGroups / toggleGroupScope / clearGroupScope", () => {
   });
 });
 
-describe("modelPanelOpen / setModelPanelOpen", () => {
-  it("closes and reopens the panel", () => {
-    modelPanelOpen.value = true;
-    setModelPanelOpen(false);
-    expect(modelPanelOpen.value).toBe(false);
-    setModelPanelOpen(true);
-    expect(modelPanelOpen.value).toBe(true);
+describe("page / setPage (S16a §5.1)", () => {
+  it("page defaults to overview", () => {
+    expect(page.value).toBe("overview");
+  });
+
+  it("setPage changes the page", () => {
+    setPage("models");
+    expect(page.value).toBe("models");
+    setPage("trend");
+    expect(page.value).toBe("trend");
+    setPage("prices");
+    expect(page.value).toBe("prices");
+    setPage("overview");
+    expect(page.value).toBe("overview");
+  });
+});
+
+describe("setGroupScope (S16a §5.1)", () => {
+  beforeEach(() => {
+    selectedGroups.value = { project: null, folder: null };
+  });
+
+  it("sets and clears the scope of one grouping without touching the other", () => {
+    setGroupScope("project", "p1");
+    setGroupScope("folder", "f1");
+    expect(selectedGroupKey("project")).toBe("p1");
+    expect(selectedGroupKey("folder")).toBe("f1");
+
+    setGroupScope("project", null);
+    expect(selectedGroupKey("project")).toBeNull();
+    expect(selectedGroupKey("folder")).toBe("f1");
+  });
+
+  it("setting the same key again does not toggle it off (unlike toggleGroupScope)", () => {
+    setGroupScope("project", "p1");
+    setGroupScope("project", "p1");
+    expect(selectedGroupKey("project")).toBe("p1");
+  });
+});
+
+/**
+ * The load-bearing test of S16a (plan §7.1): navigating through every page
+ * and back must not reset expansion, session expansion, sort, scope,
+ * grouping or the date range. Every value below is deliberately
+ * NON-default — a test that navigates from a pristine state would agree
+ * with a bug that resets everything to the default (LEARNINGS).
+ */
+describe("navigating does not reset report-scoped state", () => {
+  beforeEach(() => {
+    // Isolation from every other describe block in this file: these signals
+    // are module-level and NOT reset by a global hook (each describe here
+    // resets only what it touches).
+    grouping.value = "project";
+    expandedGroups.value = new Set();
+    expandedSessions.value = new Set();
+    selectedGroups.value = { project: null, folder: null };
+    sessionSortField.value = "cost";
+    sessionSortDirection.value = "desc";
+    clearRange();
+  });
+
+  afterEach(() => {
+    grouping.value = "project";
+    expandedGroups.value = new Set();
+    expandedSessions.value = new Set();
+    selectedGroups.value = { project: null, folder: null };
+    sessionSortField.value = "cost";
+    sessionSortDirection.value = "desc";
+    clearRange();
+  });
+
+  it("expansion, session expansion, sort, scope, grouping and range survive a round trip through every page", () => {
+    setGrouping("folder");
+    toggleGroup("folder", "f1");
+    toggleSession("folder", "sess1");
+    setSessionSort("duration");
+    setGroupScope("folder", "f1");
+    setRangePreset("thisMonth");
+
+    const pages: readonly (typeof page.value)[] = ["models", "trend", "prices", "overview"];
+    for (const next of pages) {
+      setPage(next);
+    }
+
+    expect(page.value).toBe("overview");
+    expect(grouping.value).toBe("folder");
+    expect(expandedKeysFor("folder").has("f1")).toBe(true);
+    expect(expandedSessionKeysFor("folder").has("sess1")).toBe(true);
+    expect(sessionSortField.value).toBe("duration");
+    expect(sessionSortDirection.value).toBe("desc");
+    expect(selectedGroupKey("folder")).toBe("f1");
+    expect(rangePreset.value).toBe("thisMonth");
   });
 });
 
@@ -262,12 +346,16 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
     expect(sessionSortDirection.value).toBe("asc");
   });
 
-  it("grouping, expansion, sort and scope all survive a rescan", async () => {
+  it("grouping, expansion, sort, scope and the active page all survive a rescan", async () => {
     setGrouping("folder");
     toggleGroup("folder", "f1");
     toggleGroupScope("folder", "f1");
     setSessionSort("duration");
-    setModelPanelOpen(false);
+    // S16a review: CLAUDE.md rule 9 states "`runScan()` never touches it"
+    // of `page`, and nothing pinned that. Non-default on purpose — asserting
+    // "overview" after a rescan that started on "overview" agrees with a
+    // bug that resets the page (LEARNINGS).
+    setPage("trend");
     vi.mocked(scanDiscovery).mockResolvedValue(makeScanResult(0));
 
     await runScan();
@@ -276,7 +364,8 @@ describe("sessionSortField / sessionSortDirection / setSessionSort", () => {
     expect(expandedKeysFor("folder").has("f1")).toBe(true);
     expect(selectedGroupKey("folder")).toBe("f1");
     expect(sessionSortField.value).toBe("duration");
-    expect(modelPanelOpen.value).toBe(false);
+    expect(page.value).toBe("trend");
+    setPage("overview");
   });
 });
 
@@ -346,16 +435,6 @@ describe("date range filter (S13 plan §4.7)", () => {
 
     expect(rangePreset.value).toBe("thisMonth");
     expect(activeRange.value).toEqual(rangeBefore);
-  });
-});
-
-describe("setView", () => {
-  it("switches between overview and prices", () => {
-    view.value = "overview";
-    setView("prices");
-    expect(view.value).toBe("prices");
-    setView("overview");
-    expect(view.value).toBe("overview");
   });
 });
 

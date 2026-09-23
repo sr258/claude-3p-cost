@@ -58,6 +58,21 @@
   --c3p-surface: #ffffff;
   --c3p-surface-raised: #ffffff;
   --c3p-border: var(--c3p-contrast-20);
+
+  /* S16a: minimum viable keyboard-focus visibility (D1). S16b widens this to
+     every control and adds hover/active states. */
+  --c3p-focus: var(--c3p-primary);
+}
+
+/* S16a §6.6: this session must not ship a navigation control that cannot be
+   seen from the keyboard. Scoped to the controls this session adds/changes;
+   S16b widens it to every control. */
+.app-nav button:focus-visible,
+.context-bar button:focus-visible,
+.context-bar select:focus-visible,
+.overview-table button:focus-visible {
+  outline: 2px solid var(--c3p-focus);
+  outline-offset: 2px;
 }
 
 /* ─── CSS Reset ─────────────────────────────────────────────────────────── */
@@ -610,37 +625,57 @@ body {
   gap: var(--c3p-space-xs);
 }
 
-.model-panel-open {
+/* ─── Navigation shell (S16a, US-2.2/US-2.3/US-2.4/US-5.1/US-5.2) ────────── */
+
+.app-nav {
+  display: flex;
+  gap: var(--c3p-space-xs);
+  width: 100%;
+  border-bottom: 1px solid var(--c3p-border);
+  padding-bottom: var(--c3p-space-xs);
+}
+
+.app-nav button {
   font-size: var(--c3p-font-s);
   padding: var(--c3p-space-xs) var(--c3p-space-s);
-  border: 1px solid var(--c3p-border);
+  border: 1px solid transparent;
   border-radius: var(--c3p-radius-s);
-  background: var(--c3p-surface);
+  background: none;
   color: var(--c3p-text-primary);
   cursor: pointer;
 }
 
-/* ─── Content grid: overview table + model panel (S10, US-2.3, plan §2 Q7) ── */
+.app-nav button[aria-current="page"] {
+  border-color: var(--c3p-primary);
+  color: var(--c3p-primary-text);
+  background: var(--c3p-primary-10);
+}
 
-.content-grid {
+.context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--c3p-space-m);
   width: 100%;
-  display: grid;
-  /* minmax(0, ...) is load-bearing: without the zero minimum the table's
-     intrinsic width wins and the panel gets squeezed. */
-  grid-template-columns: minmax(0, 1fr) clamp(18rem, 22vw, 24rem);
-  gap: var(--c3p-space-l);
-  align-items: start;
 }
 
-.content-grid--panel-closed {
-  grid-template-columns: minmax(0, 1fr);
+.context-bar__scope {
+  display: flex;
+  align-items: center;
+  gap: var(--c3p-space-xs);
+  font-size: var(--c3p-font-s);
 }
 
-@media (max-width: 1100px) {
-  .content-grid,
-  .content-grid--panel-closed {
-    grid-template-columns: minmax(0, 1fr);
-  }
+/* S16a §6.6 (D11, partially — S16b finishes it): one wrapper so the context
+   bar and the table share an edge, replacing `.app-shell`'s
+   `align-items: center` for the content column. */
+.page {
+  width: 100%;
+  max-width: 60rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--c3p-space-m);
 }
 
 /* ─── Model panel (S10, US-2.3) ──────────────────────────────────────────── */
@@ -653,27 +688,6 @@ body {
   font-size: var(--c3p-font-s);
 }
 
-.model-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--c3p-space-s);
-}
-
-.model-panel__heading {
-  font-size: var(--c3p-font-m);
-}
-
-.model-panel__close {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--c3p-font-l);
-  line-height: 1;
-}
-
 .model-panel__scope {
   display: flex;
   align-items: center;
@@ -681,15 +695,6 @@ body {
   gap: var(--c3p-space-s);
   margin-bottom: var(--c3p-space-s);
   color: var(--c3p-text-secondary);
-}
-
-.model-panel__scope button {
-  font-size: var(--c3p-font-xs);
-  padding: 0 var(--c3p-space-xs);
-  border: 1px solid var(--c3p-border);
-  border-radius: var(--c3p-radius-s);
-  background: var(--c3p-surface);
-  cursor: pointer;
 }
 
 .model-panel__table {
@@ -763,26 +768,6 @@ body {
   font-size: var(--c3p-font-s);
 }
 
-.trend-section__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.trend-section__heading {
-  font-size: var(--c3p-font-m);
-}
-
-.trend-section__disclosure {
-  font-size: var(--c3p-font-s);
-  padding: var(--c3p-space-xs) var(--c3p-space-s);
-  border: 1px solid var(--c3p-border);
-  border-radius: var(--c3p-radius-s);
-  background: var(--c3p-surface);
-  color: var(--c3p-text-primary);
-  cursor: pointer;
-}
-
 .trend-section__controls {
   display: flex;
   flex-wrap: wrap;
@@ -820,15 +805,6 @@ body {
   color: var(--c3p-text-secondary);
 }
 
-.trend-section__scope button {
-  font-size: var(--c3p-font-xs);
-  padding: 0 var(--c3p-space-xs);
-  border: 1px solid var(--c3p-border);
-  border-radius: var(--c3p-radius-s);
-  background: var(--c3p-surface);
-  cursor: pointer;
-}
-
 .trend-table {
   width: 100%;
   border-collapse: collapse;
@@ -864,10 +840,6 @@ body {
 }
 
 /* ─── Price table editor (S15, US-4.2) ───────────────────────────────────── */
-
-.view-switch {
-  margin-left: auto;
-}
 
 .price-table-editor {
   width: 100%;

@@ -376,10 +376,45 @@ describe("OverviewTable", () => {
     expect(onSelect).toHaveBeenCalledWith("a");
   });
 
+  it("expands when the disclosure is activated", () => {
+    // The positive control for the negative test below: without this,
+    // `hasAttribute("onclick")` or an absent-callback assertion would be
+    // vacuous in Preact — JSX handlers attach via addEventListener and never
+    // produce a content attribute (LEARNINGS).
+    const onToggle = vi.fn();
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, onToggle })} />);
+    screen.getByTestId("group-disclosure").click();
+    expect(onToggle).toHaveBeenCalledWith("a");
+  });
+
+  it("does not expand when a non-disclosure cell is clicked", () => {
+    // S16a §6.4: the `<tr onClick>` and its `closest("button")` guard are
+    // gone — the disclosure button is now the only thing that expands a
+    // group. Clicking the cost cell must call neither onToggle nor render a
+    // session table. Paired with the positive control above.
+    const onToggle = vi.fn();
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessions: [sessionRow({ sessionId: "s1" })],
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, onToggle })} />);
+    within(screen.getByTestId("group-row")).getByTestId("cell-cost").click();
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("session-table")).toBeNull();
+  });
+
   it("clicking the scope control does not toggle expansion", () => {
-    // Spies on the toggle callback with a POSITIVE control (a row click that
-    // DOES expand) — an assertion that some attribute is absent would be
-    // vacuous in Preact (LEARNINGS).
     const onToggle = vi.fn();
     const groups: GroupRow[] = [
       groupRow({
@@ -392,9 +427,23 @@ describe("OverviewTable", () => {
     screen.getByTestId("scope-select").click();
     expect(onToggle).not.toHaveBeenCalled();
 
-    // Positive control: clicking the row itself (outside any button) DOES toggle.
-    screen.getByTestId("group-row").click();
+    // Positive control: activating the disclosure DOES toggle.
+    screen.getByTestId("group-disclosure").click();
     expect(onToggle).toHaveBeenCalledWith("a");
+  });
+
+  it("labels the scope control with visible text as well as an aria-label", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups })} />);
+    const control = screen.getByTestId("scope-select");
+    expect(control.textContent).toContain(t("scope.rowButton"));
+    expect(control.getAttribute("aria-label")).toBe(t("models.selectScope", { name: "Alpha" }));
   });
 
   it("the expanded panel wraps the session table in a scroll container", () => {

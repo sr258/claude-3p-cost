@@ -1,9 +1,14 @@
 /**
- * US-5.2's trend section (S14 plan §1, §2 Q1-Q3, §4.3). A collapsible,
- * full-width section below the overview table, tables only — the chart is
- * S18's job (roadmap: "the data shape must be right before anything is drawn
- * on it"). Props only, no signal reads — the `GroupingToggle` / `ModelPanel`
- * contract.
+ * US-5.2's trend section (S14 plan §1, §2 Q1-Q3, §4.3). Tables only — the
+ * chart is S18's job (roadmap: "the data shape must be right before
+ * anything is drawn on it"). Props only, no signal reads — the
+ * `GroupingToggle` / `ModelPanel` contract.
+ *
+ * S16a §5.5: lives on its own page (`page === "trend"`), always rendered
+ * when there is a series — a page cannot be closed, so the disclosure
+ * (`open`/`onToggleOpen`) is gone, along with `onResetScope`: the scope
+ * reset control moved to the context bar's `ScopeSelect`. What stays is the
+ * scope *label* — the page states what it is showing.
  *
  * Rows render newest first (Q6) by reversing `series.points` for display;
  * `series` itself is never mutated, and `TrendSeries.points` stays ascending
@@ -30,11 +35,7 @@ export interface TrendSectionProps {
   readonly series: TrendSeries;
   readonly granularity: Granularity;
   readonly scope: TrendScope;
-  readonly open: boolean;
   readonly onGranularity: (g: Granularity) => void;
-  readonly onToggleOpen: () => void;
-  /** Null when the scope is already "all" — the reset control is then absent. */
-  readonly onResetScope: (() => void) | null;
 }
 
 type DeltaDirection = "up" | "down" | "flat" | "none";
@@ -87,103 +88,79 @@ function TrendRow(props: { readonly point: TrendPoint; readonly granularity: Gra
 }
 
 export function TrendSection(props: TrendSectionProps) {
-  const { series, granularity, scope, open, onGranularity, onToggleOpen, onResetScope } = props;
+  const { series, granularity, scope, onGranularity } = props;
   const scopeText = scope.kind === "all" ? t("trend.scopeAll") : scope.label;
   const deltaColumnKey = granularity === "day" ? "trend.columnDeltaDay" : "trend.columnDeltaMonth";
   const displayPoints = [...series.points].reverse();
 
   return (
-    <section class="trend-section" data-testid="trend-section" data-open={open}>
-      <div class="trend-section__header">
-        <h2 class="trend-section__heading">{t("trend.heading")}</h2>
-        <button
-          type="button"
-          class="trend-section__disclosure"
-          data-testid="trend-disclosure"
-          aria-expanded={open}
-          onClick={onToggleOpen}
+    <section class="trend-section" data-testid="trend-section">
+      <div class="trend-section__controls">
+        <div
+          class="trend-granularity"
+          data-testid="trend-granularity"
+          role="radiogroup"
+          aria-label={t("trend.granularity")}
         >
-          {open ? t("trend.collapse") : t("trend.expand")}
-        </button>
+          <button
+            type="button"
+            role="radio"
+            data-granularity="day"
+            aria-checked={granularity === "day"}
+            onClick={() => onGranularity("day")}
+          >
+            {t("trend.day")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            data-granularity="month"
+            aria-checked={granularity === "month"}
+            onClick={() => onGranularity("month")}
+          >
+            {t("trend.month")}
+          </button>
+        </div>
+
+        <div class="trend-section__scope">
+          <span data-testid="trend-scope-label">{t("trend.scopeLabel", { scope: scopeText })}</span>
+        </div>
       </div>
 
-      {open && (
-        <>
-          <div class="trend-section__controls">
-            <div
-              class="trend-granularity"
-              data-testid="trend-granularity"
-              role="radiogroup"
-              aria-label={t("trend.granularity")}
-            >
-              <button
-                type="button"
-                role="radio"
-                data-granularity="day"
-                aria-checked={granularity === "day"}
-                onClick={() => onGranularity("day")}
-              >
-                {t("trend.day")}
-              </button>
-              <button
-                type="button"
-                role="radio"
-                data-granularity="month"
-                aria-checked={granularity === "month"}
-                onClick={() => onGranularity("month")}
-              >
-                {t("trend.month")}
-              </button>
-            </div>
+      {series.points.length === 0 ? (
+        <p data-testid="trend-empty">{t("trend.empty")}</p>
+      ) : (
+        <table class="trend-table" data-testid="trend-table">
+          <thead>
+            <tr>
+              <th scope="col">{t("trend.columnPeriod")}</th>
+              <th scope="col">{t("trend.columnCost")}</th>
+              <th scope="col">{t("trend.columnRequests")}</th>
+              <th scope="col">{t("trend.columnShare")}</th>
+              <th scope="col">{t(deltaColumnKey)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayPoints.map((point) => (
+              <TrendRow key={point.key} point={point} granularity={granularity} />
+            ))}
+          </tbody>
+        </table>
+      )}
 
-            <div class="trend-section__scope">
-              <span data-testid="trend-scope-label">
-                {t("trend.scopeLabel", { scope: scopeText })}
-              </span>
-              {onResetScope !== null && (
-                <button type="button" data-testid="trend-scope-reset" onClick={onResetScope}>
-                  {t("trend.clearScope")}
-                </button>
-              )}
-            </div>
-          </div>
+      {series.undated.requests > 0 && (
+        <p data-testid="trend-undated">
+          {t("trend.undated", {
+            cost: tCurrency(series.undated.costMicroUsd / 1e6),
+            count: tNumber(series.undated.requests),
+          })}
+        </p>
+      )}
 
-          {series.points.length === 0 ? (
-            <p data-testid="trend-empty">{t("trend.empty")}</p>
-          ) : (
-            <table class="trend-table" data-testid="trend-table">
-              <thead>
-                <tr>
-                  <th scope="col">{t("trend.columnPeriod")}</th>
-                  <th scope="col">{t("trend.columnCost")}</th>
-                  <th scope="col">{t("trend.columnRequests")}</th>
-                  <th scope="col">{t("trend.columnShare")}</th>
-                  <th scope="col">{t(deltaColumnKey)}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayPoints.map((point) => (
-                  <TrendRow key={point.key} point={point} granularity={granularity} />
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {series.undated.requests > 0 && (
-            <p data-testid="trend-undated">
-              {t("trend.undated", {
-                cost: tCurrency(series.undated.costMicroUsd / 1e6),
-                count: tNumber(series.undated.requests),
-              })}
-            </p>
-          )}
-
-          {!series.filled && (
-            <p data-testid="trend-unfilled">
-              {t("trend.unfilled", { max: tNumber(MAX_TREND_POINTS) })}
-            </p>
-          )}
-        </>
+      {!series.filled && (
+        <p data-testid="trend-unfilled">
+          {t("trend.unfilled", { max: tNumber(MAX_TREND_POINTS) })}
+        </p>
       )}
     </section>
   );
