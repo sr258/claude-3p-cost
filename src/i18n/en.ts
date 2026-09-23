@@ -14,7 +14,6 @@ import type { TranslationKey } from "./types.js";
 export const en = {
   "app.title": "Claude3PCost",
   "app.version": "Version {version}",
-  "app.subtitle": "Cost overview for Claude Desktop (3P)",
   "card.lastScan": "Last scan",
   "card.sessionCount.one": "{count} session",
   "card.sessionCount.other": "{count} sessions",
@@ -111,6 +110,8 @@ export const en = {
   "gaps.sessionsWithoutManifestCost": "totalling {cost}",
   "gaps.undatedExcluded.one": "{count} request without a timestamp outside the period",
   "gaps.undatedExcluded.other": "{count} requests without a timestamp outside the period",
+  "headline.costLabel": "Total cost",
+  "headline.ownCostLabel": "At your own prices",
   "language.de": "German",
   "language.en": "English",
   "language.label": "Language",

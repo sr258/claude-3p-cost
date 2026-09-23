@@ -58,6 +58,13 @@ export interface OverviewTableProps {
   readonly totalRecomputation: Recomputation | null;
   /** Threaded to `SessionTable` -> `SessionDetail` (S16 §2.2, §2.3). */
   readonly sessionRecomputations: ReadonlyMap<string, SessionRecomputation> | null;
+  /**
+   * `report.sessions.length` — the report-wide count, NEVER a re-sum of
+   * `groups`' `sessionCount` fields (S16b plan §5.4). Required, not
+   * optional: an optional prop would leave every call site untouched and
+   * the test this fixes would never get written (LEARNINGS).
+   */
+  readonly totalSessions: number;
 }
 
 export function OverviewTable(props: OverviewTableProps) {
@@ -79,6 +86,7 @@ export function OverviewTable(props: OverviewTableProps) {
     groupRecomputations,
     totalRecomputation,
     sessionRecomputations,
+    totalSessions,
   } = props;
 
   return (
@@ -95,7 +103,10 @@ export function OverviewTable(props: OverviewTableProps) {
           </th>
           {ownPricesConfigured && (
             <th scope="col" title={t("overview.columnCostOwnHint")} data-testid="col-cost-own">
-              {t("overview.columnCostOwn")} ⓘ
+              {t("overview.columnCostOwn")} <span aria-hidden="true">ⓘ</span>
+              <span class="visually-hidden" data-testid="col-cost-own-hint">
+                {t("overview.columnCostOwnHint")}
+              </span>
             </th>
           )}
           <th scope="col">{t("overview.columnDuration")}</th>
@@ -119,6 +130,7 @@ export function OverviewTable(props: OverviewTableProps) {
                 <th scope="row" data-testid="cell-project">
                   <button
                     type="button"
+                    class="c3p-btn c3p-btn--quiet c3p-btn--disclosure"
                     data-testid="group-disclosure"
                     aria-expanded={isExpanded}
                     aria-controls={panelId}
@@ -142,7 +154,7 @@ export function OverviewTable(props: OverviewTableProps) {
                   </button>
                   <button
                     type="button"
-                    class="scope-select"
+                    class="c3p-btn scope-select"
                     data-testid="scope-select"
                     aria-pressed={isSelected}
                     aria-label={scopeLabel}
@@ -186,7 +198,10 @@ export function OverviewTable(props: OverviewTableProps) {
                             {t("overview.costNotComputable")}
                           </span>
                         ) : (
-                          `≈ ${tCurrency(groupRecompute.costMicroUsd / 1e6)}`
+                          <>
+                            <span class="visually-hidden">{t("headline.ownCostLabel")} </span>
+                            {`≈ ${tCurrency(groupRecompute.costMicroUsd / 1e6)}`}
+                          </>
                         )}
                         {partiallyExcluded && (
                           <span
@@ -202,7 +217,18 @@ export function OverviewTable(props: OverviewTableProps) {
                               },
                             )}
                           >
-                            {" ⚠"}
+                            <span aria-hidden="true"> ⚠</span>
+                            <span class="visually-hidden">
+                              {t(
+                                groupRecompute.excluded.sessions === 1
+                                  ? "recompute.excluded.one"
+                                  : "recompute.excluded.other",
+                                {
+                                  count: tNumber(groupRecompute.excluded.sessions),
+                                  total: tNumber(group.sessionCount),
+                                },
+                              )}
+                            </span>
                           </span>
                         )}
                       </td>
@@ -241,9 +267,7 @@ export function OverviewTable(props: OverviewTableProps) {
       <tfoot>
         <tr data-testid="total-row">
           <td data-testid="cell-project">{t("overview.totalRow")}</td>
-          <td data-testid="cell-sessions">
-            {tNumber(groups.reduce((sum, group) => sum + group.sessionCount, 0))}
-          </td>
+          <td data-testid="cell-sessions">{tNumber(totalSessions)}</td>
           <td data-testid="cell-requests">{tNumber(totals.requests)}</td>
           <td data-testid="cell-cost">{tCurrency(totals.costMicroUsd / 1e6)}</td>
           {ownPricesConfigured && (
@@ -253,7 +277,10 @@ export function OverviewTable(props: OverviewTableProps) {
                   {t("overview.costNotComputable")}
                 </span>
               ) : (
-                `≈ ${tCurrency(totalRecomputation.costMicroUsd / 1e6)}`
+                <>
+                  <span class="visually-hidden">{t("headline.ownCostLabel")} </span>
+                  {`≈ ${tCurrency(totalRecomputation.costMicroUsd / 1e6)}`}
+                </>
               )}
             </td>
           )}
@@ -264,7 +291,7 @@ export function OverviewTable(props: OverviewTableProps) {
           totalRecomputation.excluded.sessions > 0 && (
             <tr data-testid="excluded-row" class="overview-table__excluded-row">
               <td data-testid="cell-project">
-                {"⚠"} {t("overview.excludedRow")}
+                <span aria-hidden="true">⚠</span> {t("overview.excludedRow")}
               </td>
               <td data-testid="cell-sessions">{tNumber(totalRecomputation.excluded.sessions)}</td>
               <td data-testid="cell-requests" />

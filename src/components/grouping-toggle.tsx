@@ -25,6 +25,7 @@ export function GroupingToggle(props: GroupingToggleProps) {
     >
       <button
         type="button"
+        class="c3p-btn"
         role="radio"
         data-testid="grouping-project"
         aria-checked={value === "project"}
@@ -34,6 +35,7 @@ export function GroupingToggle(props: GroupingToggleProps) {
       </button>
       <button
         type="button"
+        class="c3p-btn"
         role="radio"
         data-testid="grouping-folder"
         aria-checked={value === "folder"}

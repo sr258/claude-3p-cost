@@ -243,12 +243,12 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
           {row.isEdited && (
             <button
               type="button"
-              class="price-table__reset-row"
+              class="c3p-btn c3p-btn--quiet price-table__reset-row"
               data-testid={`price-reset-${row.model}`}
               aria-label={t("prices.resetRow", { model: row.model })}
               onClick={() => onResetRow(row.model)}
             >
-              ↺
+              <span aria-hidden="true">↺</span>
             </button>
           )}
         </td>
@@ -269,6 +269,7 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
             {t("prices.resetAllConfirm")}
             <button
               type="button"
+              class="c3p-btn"
               data-testid="price-confirm-reset-all-yes"
               onClick={() => {
                 onResetAll();
@@ -277,13 +278,14 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
             >
               {t("prices.resetAll")}
             </button>
-            <button type="button" onClick={() => setPendingAction(null)}>
+            <button type="button" class="c3p-btn" onClick={() => setPendingAction(null)}>
               {t("prices.cancel")}
             </button>
           </span>
         ) : (
           <button
             type="button"
+            class="c3p-btn"
             data-testid="price-reset-all"
             onClick={() => setPendingAction("resetAll")}
           >
@@ -291,7 +293,12 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
           </button>
         )}
 
-        <button type="button" data-testid="price-export" onClick={() => void handleExport()}>
+        <button
+          type="button"
+          class="c3p-btn"
+          data-testid="price-export"
+          onClick={() => void handleExport()}
+        >
           {t("prices.json.export")}
         </button>
 
@@ -300,18 +307,20 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
             {t("prices.json.importReplaceWarning")}
             <button
               type="button"
+              class="c3p-btn"
               data-testid="price-confirm-import-yes"
               onClick={() => void handleImportConfirmed()}
             >
               {t("prices.json.import")}
             </button>
-            <button type="button" onClick={() => setPendingAction(null)}>
+            <button type="button" class="c3p-btn" onClick={() => setPendingAction(null)}>
               {t("prices.cancel")}
             </button>
           </span>
         ) : (
           <button
             type="button"
+            class="c3p-btn"
             data-testid="price-import"
             onClick={() => setPendingAction("import")}
           >
@@ -358,6 +367,7 @@ export function PriceTableEditor(props: PriceTableEditorProps) {
         <div class="price-table-editor__other-models">
           <button
             type="button"
+            class="c3p-btn c3p-btn--quiet"
             data-testid="price-other-models-toggle"
             aria-expanded={otherModelsOpen}
             onClick={() => setOtherModelsOpen(!otherModelsOpen)}

@@ -9,6 +9,40 @@ Newest entry first.
 
 ---
 
+- **A diff-shaped invariant must be stated as a token-level comparison, not a
+  line grep.** A line-oriented filter cannot express "same element, rewrapped",
+  so a formatter that rewraps a tag when a new attribute crosses `printWidth`
+  produces residual lines that look like semantic changes. Normalise whitespace
+  on both revisions and diff after stripping the added attribute — one command,
+  and it turns a plausible explanation into a verified one.
+- **`translatePlural` substitutes only `{count}`.** A plural key carrying a
+  second placeholder must go through `t()` / `translate()` with the `.one` /
+  `.other` branch chosen explicitly; `recompute.excluded.*` is the live example.
+  Reaching for `tPlural` reflexively gives a `TArgs` type error, not a runtime
+  bug, but it costs a detour.
+- **A zone-format pin builds its boundary instant from local-time
+  `Date(y, m, d, h)` components, never `Date.UTC(...)`.** Where a function's
+  contract is to format a real instant in the *host* zone, `timeZone: "UTC"` is
+  not the fix. A development machine at UTC+2 renders a UTC-midnight boundary
+  and UTC-midnight-minus-1ms as the same local calendar day, so the off-by-one
+  control never triggers.
+- **A formatting assertion needs an input on which the two formatters
+  disagree.** `tNumber(4) === String(4)`, so a test named for catching
+  `String()` instead of `tNumber` is vacuous below 1000 — any
+  thousands-separator claim needs a four-digit value. Reviewing such a test
+  means checking the fixture's values against the claim, not just that the test
+  exists.
+- **When hidden text lands inside an element an exact-equality assertion reads,
+  the fix is a `visibleText()` helper, not `toContain`.** Stripping
+  `.visually-hidden` descendants from a clone restores the "nothing else is in
+  this cell" property on the surface where it now lives, and is stronger than
+  the original because it also permits-and-ignores the new alternative.
+  `toContain` silently widens the assertion to "somewhere in here".
+- **A CSS class defined for markup that was never written is invisible to every
+  check in the exit set.** It passes lint, build, format and both suites while
+  doing nothing, and the plan sentence it implements reads as delivered. Where a
+  plan describes a rule *and* the markup hook it needs, grep the components for
+  the hook — the stylesheet alone never says whether anything uses it.
 - **A testid is one app-wide namespace, not a per-component one.** Two
   components defined in different files can render on the same page, and
   `getByTestId` has no scope — so the obvious name for a new control is often

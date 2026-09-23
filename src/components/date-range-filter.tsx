@@ -48,6 +48,7 @@ export function DateRangeFilter(props: DateRangeFilterProps) {
         {PRESETS.map((def) => (
           <button
             type="button"
+            class="c3p-btn"
             role="radio"
             key={def.id}
             data-testid="range-preset"
@@ -60,6 +61,7 @@ export function DateRangeFilter(props: DateRangeFilterProps) {
         ))}
         <button
           type="button"
+          class="c3p-btn"
           role="radio"
           data-testid="range-preset"
           data-preset="custom"

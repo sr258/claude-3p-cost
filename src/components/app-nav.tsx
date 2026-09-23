@@ -45,6 +45,7 @@ export function AppNav(props: AppNavProps) {
         return (
           <button
             type="button"
+            class="c3p-btn c3p-btn--quiet"
             key={item.key}
             data-testid={`nav-${item.key}`}
             data-page={item.key}

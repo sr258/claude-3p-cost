@@ -7,7 +7,6 @@
 export const de = {
   "app.title": "Claude3PCost",
   "app.version": "Version {version}",
-  "app.subtitle": "Kostenübersicht für Claude Desktop (3P)",
   "card.lastScan": "Letzter Scan",
   "card.sessionCount.one": "{count} Sitzung",
   "card.sessionCount.other": "{count} Sitzungen",
@@ -104,6 +103,8 @@ export const de = {
   "gaps.sessionsWithoutManifestCost": "davon {cost}",
   "gaps.undatedExcluded.one": "{count} Anfrage ohne Zeitstempel außerhalb des Zeitraums",
   "gaps.undatedExcluded.other": "{count} Anfragen ohne Zeitstempel außerhalb des Zeitraums",
+  "headline.costLabel": "Kosten gesamt",
+  "headline.ownCostLabel": "Nach eigenen Preisen",
   "language.de": "Deutsch",
   "language.en": "Englisch",
   "language.label": "Sprache",

@@ -5,7 +5,7 @@ import { locale } from "../state/app-state.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "../model/totals.js";
 import type { CostTotals, GroupRow, SessionRow } from "../model/report-types.js";
 import { OverviewTable, type OverviewTableProps } from "./overview-table.js";
-import { formatCurrency } from "../i18n/format.js";
+import { formatCurrency, formatNumber } from "../i18n/format.js";
 import type { Recomputation } from "../model/recompute.js";
 
 function totalsOf(partial: Partial<CostTotals>): CostTotals {
@@ -72,6 +72,7 @@ function defaultProps(overrides: Partial<OverviewTableProps> = {}): OverviewTabl
     groupRecomputations: null,
     totalRecomputation: null,
     sessionRecomputations: null,
+    totalSessions: 0,
     ...overrides,
   };
 }
@@ -140,6 +141,29 @@ describe("OverviewTable", () => {
     const totalRow = screen.getByTestId("total-row");
     expect(within(totalRow).getByTestId("cell-cost").textContent).toContain("999.00");
     expect(within(totalRow).getByTestId("cell-requests").textContent).toBe("999");
+  });
+
+  it("renders the footer session count from the totalSessions prop, not a sum of the group rows", () => {
+    // Engineered so the wrong rule (summing groups' sessionCount) yields a
+    // DIFFERENT number from the right one: groups sum to 5, prop says 7
+    // (LEARNINGS: a "sums to N" invariant over one array is a tautology).
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 2,
+      }),
+      groupRow({
+        key: "b",
+        label: { kind: "project", project: { kind: "named", spaceId: "b", name: "Beta" } },
+        sessionCount: 3,
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, totalSessions: 7 })} />);
+
+    const totalRow = screen.getByTestId("total-row");
+    expect(within(totalRow).getByTestId("cell-sessions").textContent).toBe("7");
   });
 
   it("formats cost for the active locale in German and in English", () => {
@@ -341,6 +365,34 @@ describe("OverviewTable", () => {
     expect(part.textContent).toBe("src");
     expect(part.getAttribute("title")).toBe("/home/me/projects/src");
     expect(screen.queryByText("/home/me/projects/src")).toBeNull();
+  });
+
+  // S16b plan §4.5: this is a DELIBERATE, documented exception to the D4
+  // pass — a `visually-hidden` copy would put the full path into
+  // `textContent`, exactly the surface an export or clipboard copy reads
+  // (NFR-6). A later session "completing" D4 over this title must not add
+  // one; this test fails if it does.
+  it("keeps the folder path in the title attribute only, with no visually-hidden copy", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "f1",
+        label: {
+          kind: "folder",
+          folder: {
+            kind: "folders",
+            key: "f1",
+            folders: [{ display: "src", path: "/home/me/projects/src", kind: "local" }],
+          },
+        },
+      }),
+    ];
+
+    render(<OverviewTable {...defaultProps({ groups, grouping: "folder" })} />);
+
+    const part = screen.getByTestId("folder-part");
+    expect(part.getAttribute("title")).toBe("/home/me/projects/src");
+    expect(part.querySelector(".visually-hidden")).toBeNull();
+    expect(screen.getByTestId("overview-table").textContent).not.toContain("/home/me/projects/src");
   });
 
   it("the scope control reflects selection in aria-pressed, not by row colour alone", () => {
@@ -727,5 +779,72 @@ describe("OverviewTable — dual cost display (S16)", () => {
       .querySelectorAll(":scope > thead > tr > th");
     // project + sessions + requests + cost(list) + cost(own) + duration.
     expect(headerCells.length).toBe(6);
+  });
+
+  it("gives the own-cost column's ⓘ a text alternative and hides the glyph from assistive technology", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        sessionCount: 1,
+      }),
+    ];
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([["a", recomputation()]]),
+          totalRecomputation: recomputation(),
+        })}
+      />,
+    );
+    const header = screen.getByTestId("col-cost-own");
+    const glyph = header.querySelector('[aria-hidden="true"]');
+    expect(glyph?.textContent).toBe("ⓘ");
+    const hint = screen.getByTestId("col-cost-own-hint");
+    expect(hint.textContent).toBe(t("overview.columnCostOwnHint"));
+    expect(hint.className).toContain("visually-hidden");
+  });
+
+  it("gives the partial-exclusion ⚠ a text alternative carrying both counts", () => {
+    const groups: GroupRow[] = [
+      groupRow({
+        key: "a",
+        label: { kind: "project", project: { kind: "named", spaceId: "a", name: "Alpha" } },
+        // Four digits on purpose: `tNumber(1234)` is "1,234" under `en` and
+        // `String(1234)` is "1234", so this fixture separates the two
+        // (LEARNINGS: `String(n)` inside a `t()` placeholder passes lint,
+        // type-check and the whole suite). With a one-digit count the
+        // assertion below could not tell the defect from the fix.
+        sessionCount: 1234,
+      }),
+    ];
+    const partial = recomputation({
+      excluded: { sessions: 1, models: ["model-x"], listCostMicroUsd: 250_000 },
+    });
+    render(
+      <OverviewTable
+        {...defaultProps({
+          groups,
+          ownPricesConfigured: true,
+          groupRecomputations: new Map([["a", partial]]),
+          totalRecomputation: partial,
+        })}
+      />,
+    );
+    const mark = screen.getByTestId("cell-cost-own-partial");
+    const glyph = mark.querySelector('[aria-hidden="true"]');
+    expect(glyph?.textContent).toContain("⚠");
+    const hidden = mark.querySelector(".visually-hidden");
+    expect(hidden?.textContent).toBe(
+      t("recompute.excluded.one", {
+        count: formatNumber("en", 1),
+        total: formatNumber("en", 1234),
+      }),
+    );
+    // The `String(n)` defect in the shape LEARNINGS predicts: an unformatted
+    // "1234" must not appear anywhere in the alternative.
+    expect(hidden?.textContent).not.toContain("1234");
   });
 });

@@ -66,6 +66,7 @@ export function EmptyState() {
                   <span>{name}</span>
                   <button
                     type="button"
+                    class="c3p-btn"
                     aria-label={t("empty.removeRootLabel", { name })}
                     data-testid={`remove-root-${path}`}
                     onClick={() => removeManualRoot(path)}
@@ -81,7 +82,7 @@ export function EmptyState() {
 
       <button
         type="button"
-        class="empty-state__choose-folder"
+        class="c3p-btn c3p-btn--primary empty-state__choose-folder"
         data-testid="choose-folder-button"
         onClick={() => void chooseFolder()}
       >

@@ -34,9 +34,11 @@ import { LanguageSwitcher } from "./components/language-switcher.js";
 import { EmptyState } from "./components/empty-state.js";
 import { GapIndicators } from "./components/gap-indicators.js";
 import { groupLabelText } from "./components/group-label.js";
+import { HeadlineTotal } from "./components/headline-total.js";
 import { ModelPanel, type ModelScope } from "./components/model-panel.js";
 import { OverviewTable } from "./components/overview-table.js";
 import { PriceTableEditor } from "./components/price-table-editor.js";
+import { rangeLabel } from "./components/range-label.js";
 import type { ScopeOption } from "./components/scope-select.js";
 import { StatusBar } from "./components/status-bar.js";
 import { TrendSection, type TrendScope } from "./components/trend-section.js";
@@ -138,6 +140,27 @@ export function App() {
     ? buildTrend(trendRows, trendGranularity.value, localZoneOffset, currentReport.range)
     : null;
 
+  // D13's headline total (S16b plan §5.3). Scoped values come from the
+  // SAME `selectedGroup` computed above -- never a re-aggregation. `null`
+  // period omits the period slot; `null` own-cost omits that whole line.
+  const headlineCostMicroUsd = selectedGroup
+    ? selectedGroup.totals.costMicroUsd
+    : (currentReport?.totals.costMicroUsd ?? 0);
+  const headlineSessionCount = selectedGroup
+    ? selectedGroup.sessionCount
+    : (currentReport?.sessions.length ?? 0);
+  const headlineScopeLabel = selectedGroup ? groupLabelText(selectedGroup.label).text : null;
+  const headlinePeriodLabel = rangeLabel(currentReport?.range ?? null);
+  const headlineRecomputation = selectedGroup
+    ? (recomputation.value?.byGroupKey.get(selectedGroup.key) ?? null)
+    : (recomputation.value?.total ?? null);
+  const headlineOwnCostMicroUsd = ownPricesConfigured.value
+    ? (headlineRecomputation?.costMicroUsd ?? null)
+    : null;
+  const headlineOwnExcludedSessions = ownPricesConfigured.value
+    ? (headlineRecomputation?.excluded.sessions ?? 0)
+    : 0;
+
   const currentPage = page.value;
 
   // NFR-11: focus moves to the new page's heading on navigation, but NOT on
@@ -176,6 +199,15 @@ export function App() {
     return (
       <>
         {scanState.value === "scanning" && <p data-testid="scan-running">{t("scan.running")}</p>}
+        <HeadlineTotal
+          costMicroUsd={headlineCostMicroUsd}
+          sessionCount={headlineSessionCount}
+          grouping={currentGrouping}
+          scopeLabel={headlineScopeLabel}
+          periodLabel={headlinePeriodLabel}
+          ownCostMicroUsd={headlineOwnCostMicroUsd}
+          ownExcludedSessions={headlineOwnExcludedSessions}
+        />
         {contextBar}
         {body}
       </>
@@ -202,8 +234,6 @@ export function App() {
       <AppNav page={currentPage} onNavigate={setPage} />
 
       <div class="page">
-        {currentPage !== "prices" && <p class="app-shell__subtitle">{t("app.subtitle")}</p>}
-
         {currentPage === "overview" &&
           (reportReady
             ? readyPage(
@@ -234,6 +264,7 @@ export function App() {
                     groupRecomputations={recomputation.value?.byGroupKey ?? null}
                     totalRecomputation={recomputation.value?.total ?? null}
                     sessionRecomputations={recomputation.value?.bySessionId ?? null}
+                    totalSessions={currentReport!.sessions.length}
                   />
                   <RecomputeNote
                     recomputation={recomputation.value?.total ?? null}

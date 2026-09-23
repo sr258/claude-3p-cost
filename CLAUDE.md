@@ -230,6 +230,27 @@ claude-3p-cost/                        # repository root
    (S16a supersedes S10's "beside the table" placement), and the scope they
    follow is set from a context bar visible on every report page.
 
+### Visual system
+
+S16b's D1/D7/D8/D11 pass (`src/styles/index.css`). Each claim below has a
+named test in `docs/plans/S16b-visual-system.md` §7 (LEARNINGS: a new
+architecture rule is a claim that needs a test).
+
+- **`.c3p-btn` plus its variants (`--quiet`, `--primary`, `--disclosure`) is
+  the only button styling.** A component styles a button by choosing a
+  variant, never by adding a rule of its own.
+- **`:focus-visible` is global.** `:where(button, select, input,
+  [tabindex]):focus-visible` covers every interactive control; no control
+  opts out.
+- **A `title` whose content is an absolute path never gets a
+  `visually-hidden` copy** (S16b plan §4.5 — the folder-group and
+  empty-state search-location titles are a deliberate, documented exception
+  to the D4 accessibility pass, because a hidden copy would put the path
+  into `textContent`, exactly the surface an export or clipboard copy reads,
+  violating NFR-6). `--c3p-content-max` is the single width authority for
+  `.app-bar`, `.app-nav`, `.status-bar` and `.page` — never a second
+  hardcoded `max-width`.
+
 ## Data Model Essentials
 
 The full picture is in `MAP.md` §4. The things that will bite you:

@@ -76,3 +76,28 @@ test("the first group row is attached within 2 seconds of navigation", async ({ 
   const elapsedMs = Date.now() - start;
   expect(elapsedMs).toBeLessThan(2000);
 });
+
+test("the headline total matches the table's footer total", async ({ page }) => {
+  await gotoApp(page, { tree: overviewTree, locale: "en" });
+
+  const headlineCost = page.getByTestId("headline-cost");
+  const footerCost = page.getByTestId("total-row").getByTestId("cell-cost");
+  // `toContainText`, not `toHaveText`: the headline carries a
+  // visually-hidden accessible label ahead of the figure (`textContent`
+  // includes it even though it renders no visible text), so the real claim
+  // is that the same currency text is IN there, not that the two elements'
+  // full text content is identical.
+  await expect(headlineCost).toContainText(await footerCost.innerText());
+});
+
+test("the headline total follows the selected scope", async ({ page }) => {
+  await gotoApp(page, { tree: overviewTree, locale: "en" });
+
+  const rows = page.getByTestId("group-row");
+  const firstRow = rows.first();
+  const firstRowCost = await firstRow.getByTestId("cell-cost").innerText();
+
+  await firstRow.getByTestId("scope-select").click();
+
+  await expect(page.getByTestId("headline-cost")).toContainText(firstRowCost);
+});

@@ -104,6 +104,7 @@ export function TrendSection(props: TrendSectionProps) {
         >
           <button
             type="button"
+            class="c3p-btn"
             role="radio"
             data-granularity="day"
             aria-checked={granularity === "day"}
@@ -113,6 +114,7 @@ export function TrendSection(props: TrendSectionProps) {
           </button>
           <button
             type="button"
+            class="c3p-btn"
             role="radio"
             data-granularity="month"
             aria-checked={granularity === "month"}

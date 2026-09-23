@@ -37,6 +37,7 @@ vi.mock("./services/scan.js", () => ({
 }));
 
 import { App } from "./app.js";
+import { tPlural } from "./i18n/index.js";
 import { ALL_TIME } from "./model/date-range.js";
 import { EMPTY_MODEL_BREAKDOWN, EMPTY_TOTALS } from "./model/totals.js";
 import type { GroupRow, Report, SessionRow } from "./model/report-types.js";
@@ -155,5 +156,52 @@ describe("App", () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByTestId("page-heading"));
     });
+  });
+
+  it("renders the headline total on each report page and not on the prices page", () => {
+    for (const p of ["overview", "models", "trend"] as const) {
+      appState.page.value = p;
+      const { unmount } = render(<App />);
+      expect(screen.getByTestId("headline-total")).toBeTruthy();
+      unmount();
+    }
+
+    appState.page.value = "prices";
+    render(<App />);
+    expect(screen.queryByTestId("headline-total")).toBeNull();
+  });
+
+  it("passes the report-wide session count when no scope is selected and the group's own count when one is", () => {
+    const groupA = makeGroup({
+      key: "a",
+      sessionCount: 2,
+      sessions: [makeSession({ sessionId: "s1" }), makeSession({ sessionId: "s2" })],
+    });
+    const groupB = makeGroup({
+      key: "b",
+      sessionCount: 3,
+      sessions: [
+        makeSession({ sessionId: "s3" }),
+        makeSession({ sessionId: "s4" }),
+        makeSession({ sessionId: "s5" }),
+      ],
+    });
+    appState.report.value = makeReport({
+      sessions: [...groupA.sessions, ...groupB.sessions],
+      projectGroups: [groupA, groupB],
+      folderGroups: [groupA, groupB],
+    });
+
+    const { unmount } = render(<App />);
+    expect(screen.getByTestId("headline-sessions").textContent).toBe(
+      tPlural("scan.sessionCount", 5),
+    );
+    unmount();
+
+    appState.selectedGroups.value = { project: "a", folder: null };
+    render(<App />);
+    expect(screen.getByTestId("headline-sessions").textContent).toBe(
+      tPlural("scan.sessionCount", 2),
+    );
   });
 });

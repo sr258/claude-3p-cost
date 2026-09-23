@@ -69,7 +69,7 @@ introduced. E2E coverage grows with the app; it is never a phase at the end.
 | S15 | ✅ Price table: storage and editor | US-4.2 | S10 |
 | S16 | ✅ Dual cost display + transparency | US-4.1, US-4.3 | S15, S11 |
 | S16a | ✅ UI/UX: navigation shell and scope | US-2.2 (amended), US-2.3, US-2.4, US-5.1, US-5.2, NFR-11 | S16 |
-| S16b | UI/UX: visual system | NFR-11, NFR-7 | S16a |
+| S16b | ✅ UI/UX: visual system | NFR-11, NFR-7 | S16a |
 | S17 | Budgets | US-6.1, US-6.2 | S13, S15 |
 | **Phase 7 — Output and liveness** ||||
 | S18 | Charts | US-3.3 | S14, S11 |
@@ -482,6 +482,8 @@ now lives — the scope-reset behaviour, for instance, re-homes to
 `scope-select.test.tsx`.
 
 ### S16b — UI/UX: visual system
+
+**Status. Done 2026-09-23.** Plan: `docs/plans/S16b-visual-system.md`.
 
 **Goal.** One coherent set of controls instead of eight ad-hoc ones.
 

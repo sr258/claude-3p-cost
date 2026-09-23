@@ -8,6 +8,22 @@ import { SessionTable } from "./session-table.js";
 import { formatCurrency, formatPercent } from "../i18n/format.js";
 import type { SessionRecomputation } from "../model/recompute.js";
 
+/**
+ * The element's text with every `visually-hidden` alternative stripped —
+ * i.e. what a sighted reader sees. S16b added hidden alternatives inside
+ * two cells whose assertions were exact equalities; relaxing those to
+ * `toContain` would have dropped the property they existed for ("nothing
+ * else is in this cell"). Asserting exact equality on the VISIBLE text
+ * keeps that property while allowing the hidden alternative.
+ */
+function visibleText(element: Element): string {
+  const clone = element.cloneNode(true) as Element;
+  for (const hidden of Array.from(clone.querySelectorAll(".visually-hidden"))) {
+    hidden.remove();
+  }
+  return clone.textContent ?? "";
+}
+
 function totalsOf(partial: Partial<CostTotals>): CostTotals {
   return {
     ...EMPTY_TOTALS,
@@ -461,10 +477,16 @@ describe("SessionTable", () => {
     const row = screen.getAllByTestId("session-row")[0]!;
     expect(row.getAttribute("data-partial")).toBe("true");
     const badge = within(row).getByTestId("partial-badge");
-    expect(badge.textContent).toBe(t("session.partial"));
+    // Exact equality on the VISIBLE text, as before S16b: the badge shows the
+    // short label and nothing else. Only the hidden alternative is new.
+    expect(visibleText(badge)).toBe(t("session.partial"));
     expect(badge.getAttribute("title")).toBe(
       t("session.partialTitle", { included: "8", total: "20" }),
     );
+    // S16b D4: the counts are also reachable from the keyboard/screen reader,
+    // not title-only.
+    const hiddenAlt = badge.querySelector(".visually-hidden");
+    expect(hiddenAlt?.textContent).toBe(t("session.partialTitle", { included: "8", total: "20" }));
   });
 
   it("a fully included row sets data-partial to false and renders no badge", () => {
@@ -572,7 +594,10 @@ describe("SessionTable - own price secondary line (S16)", () => {
       ]),
     );
     const own = within(screen.getAllByTestId("session-row")[0]!).getByTestId("cell-cost-own");
-    expect(own.textContent).toBe(t("session.costOwnNotComputable"));
+    // Exact equality on the VISIBLE text, as before S16b: the cell says
+    // "not computable" and carries NO figure of any kind — the assertion
+    // below is the belt, this one the braces.
+    expect(visibleText(own)).toBe(t("session.costOwnNotComputable"));
     expect(own.textContent).not.toContain(formatCurrency("en", 0));
   });
 });

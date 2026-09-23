@@ -118,6 +118,7 @@ export function SessionTable(props: SessionTableProps) {
               <th scope="col" key={column.testId} aria-sort={ariaSort}>
                 <button
                   type="button"
+                  class="c3p-btn c3p-btn--quiet"
                   data-testid={`sort-${column.field}`}
                   aria-label={t("session.sortBy", { column: t(column.labelKey) })}
                   onClick={() => onSort(column.field as SessionSortField)}
@@ -176,6 +177,12 @@ export function SessionTable(props: SessionTableProps) {
                       })}
                     >
                       {t("session.partial")}
+                      <span class="visually-hidden">
+                        {t("session.partialTitle", {
+                          included: tNumber(session.totals.requests),
+                          total: tNumber(session.totals.requests + session.excludedRequests),
+                        })}
+                      </span>
                     </span>
                   )}
                 </td>
@@ -206,6 +213,7 @@ export function SessionTable(props: SessionTableProps) {
                         data-testid="cell-cost-own"
                         data-computed="true"
                       >
+                        <span class="visually-hidden">{t("headline.ownCostLabel")} </span>
                         {text}
                       </span>
                     );
