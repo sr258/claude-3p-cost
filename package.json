@@ -31,7 +31,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@preact/preset-vite": "^2.10.6",
-    "@tauri-apps/cli": "^2.11.4",
+    "@tauri-apps/cli": "^2.11.5",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/preact": "^3.2.4",
     "@types/node": "^26.5.0",
